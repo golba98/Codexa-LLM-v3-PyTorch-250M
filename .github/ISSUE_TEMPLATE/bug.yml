@@ -1,0 +1,13 @@
+name: Bug report
+description: Reproducible correctness or infrastructure failure
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction, expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Commit, Python, PyTorch, hardware and relevant configuration

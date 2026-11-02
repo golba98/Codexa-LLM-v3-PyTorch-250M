@@ -76,6 +76,7 @@ class Trainer:
         supported = self.device.type == "cuda" and torch.cuda.is_bf16_supported()
         self.bf16 = supported and c.precision != "fp32"
         self.step, self.tokens, self.stop = 0, 0, False
+        self.resumed = False
 
     def amp(self) -> torch.autocast:
         return torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.bf16)
@@ -115,6 +116,7 @@ class Trainer:
         self.scheduler.load_state_dict(state["scheduler"])
         self.sampler.load_state_dict(state["sampler"])
         self.step, self.tokens = state["step"], state["tokens"]
+        self.resumed = True
         restore_rng(state["rng"])
 
     @torch.no_grad()
@@ -135,6 +137,8 @@ class Trainer:
     def train(self, until: int | None = None, handle_signals: bool = True) -> list[dict[str, Any]]:
         c = self.config.training
         end = min(until if until is not None else c.steps, c.steps)
+        if not self.resumed and (self.output / "latest.pt").exists():
+            raise FileExistsError("Existing checkpoint: use explicit resume or a fresh output")
         records = []
         old = {}
 

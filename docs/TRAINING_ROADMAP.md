@@ -32,3 +32,21 @@ Partition canonical mathematical identities before rendering language. Extend ho
 ## Phase F — evaluation and refinement
 
 Evaluate accuracy by grade/topic/difficulty alongside general language quality. Separate memorization from generalization using unseen ranges, wording, and compositions. Compare independent seeds and preserve failed cases. A 250M model has limited capacity and may struggle with long reasoning, reliable multi-step arithmetic, factual breadth, and unfamiliar notation. Fluent worked text can still be wrong. Consider larger models only when evidence identifies capacity rather than data or pipeline defects as the bottleneck.
+
+## Numbered engineering and research gates
+
+| Milestone | Objective and implementation | Dependencies | Validation / required evidence / exit | Risks |
+|---|---|---|---|---|
+| M1 | Repository, agents, packaging, CI and local export/preflight | Foundation | Passing local CI-equivalent checks, preservation inventory, fixture roundtrip; hosted CI explicitly pending until authorized push | Unsupported release claims, accidental data loss |
+| M2 | Architecture verification | M1 | Counts, causal/reference attention, RoPE, norms, tying, initialization and finite gradients; fixed-seed regression evidence | Numerical drift |
+| M3 | Deterministic provenance-aware tokenizer/data pipeline with bounded-memory ingestion | M1–M2 | Freeze permitted corpus and holdouts; hashes, duplicate/contamination audits, tokenizer roundtrips and memory measurements | Licensing, leakage, corpus quality |
+| M4 | Harden training recovery, metrics and precision | M2–M3 | Interrupted versus uninterrupted equality, optimizer/sampler restoration, fault injection and sustained finite pilot losses | Silent recovery divergence |
+| M5 | Optimize RTX 4080 performance from measurements | M4 | Repeat throughput/memory measurements across sequence, accumulation and optimizer settings; no accepted unexplained regression | OOM, noisy short benchmarks |
+| M6 | Bounded smoke and intermediate pretraining pilots | M3–M5 and approved pilot budgets | Loss curves, held-out evaluation, checkpoint recovery and documented data/compute; explicit go/no-go report | Smoke memorization mistaken for learning |
+| M7 | Prepare and conduct actual 250M base training | M6 and explicit compute authorization | Reviewed corpus mixture, measured budget, recovery/monitoring plan, training logs and verified final checkpoint | Expensive failures, inadequate data |
+| M8 | Evaluate base language model | M7 | Independent held-out loss, generation and generalization assessment with limitations and contamination review | Biased benchmarks, unsupported capabilities |
+| M9 | Progressive Grade 1–12 mathematics | M8 | Verified generators, unseen family/range/template holdouts, topic metrics and earlier-skill retention after every stage | Incorrect steps, forgetting, memorization |
+| M10 | Public trained model release | M8–M9 as applicable; approved weight license and publication authorization | Independent safe loading, completed card, provenance, checksums, current tests/security review and supported runtime instructions | Redistribution rights, secret leaks, unsafe claims |
+| M11 | Post-release research and scaling | M10 | Reproducible comparisons, refined datasets, evidence-based capacity decisions | Benchmark overfitting, compute cost |
+
+No completion dates are promised. Existing smoke evidence partially supports M2/M4/M5 but does not close sustained research gates. M7 and mathematics training must never start automatically.

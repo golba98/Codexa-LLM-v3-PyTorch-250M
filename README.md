@@ -11,7 +11,7 @@ Python 3.11+ is required; Python 3.13 is the tested environment. Using `uv`:
 ```sh
 uv venv --python 3.13 .venv
 source .venv/bin/activate
-uv pip install -e '.[dev]'
+uv pip install -e '.[dev,release]'
 ```
 
 For an exact reproduction of the tested environment, use `uv pip sync requirements-lock.txt`, then `uv pip install --no-deps -e .`. The lock records the Linux NVIDIA environment and is not portable to all platforms. For CPU-only installations, install a compatible PyTorch CPU wheel from https://download.pytorch.org/whl/cpu before installing this package. No local CUDA toolkit is required for packaged CUDA runtimes; an appropriate NVIDIA driver is required.
@@ -21,12 +21,12 @@ For an exact reproduction of the tested environment, use `uv pip sync requiremen
 All commands run from the repository root. `--threads` is a global CLI option (default 4).
 
 ```sh
-codexa tokenizer train --corpus examples/corpus --vocab-size 512 --output artifacts/tokenizer.json
-codexa data prepare --corpus examples/corpus --tokenizer artifacts/tokenizer.json --output artifacts/data
-codexa train --config configs/smoke.yaml --data artifacts/data --tokenizer artifacts/tokenizer.json --output runs/smoke --device cpu
-codexa train --config configs/smoke.yaml --data artifacts/data --tokenizer artifacts/tokenizer.json --output runs/smoke --device cpu --resume runs/smoke/latest.pt
-codexa generate --checkpoint runs/smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --temperature 0.8 --top-k 30 --top-p 0.9 --seed 42
-codexa generate --checkpoint runs/smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --greedy
+codexa tokenizer train --corpus examples/corpus --vocab-size 512 --output outputs/tokenizers/new-smoke/tokenizer.json
+codexa data prepare --corpus examples/corpus --tokenizer outputs/tokenizers/new-smoke/tokenizer.json --output outputs/datasets/new-smoke
+codexa train --config configs/smoke.yaml --data outputs/datasets/new-smoke --tokenizer outputs/tokenizers/new-smoke/tokenizer.json --output outputs/experiments/new-smoke --device cpu
+codexa train --config configs/smoke.yaml --data outputs/datasets/new-smoke --tokenizer outputs/tokenizers/new-smoke/tokenizer.json --output outputs/experiments/new-smoke --device cpu --resume outputs/experiments/new-smoke/latest.pt
+codexa generate --checkpoint outputs/experiments/new-smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --temperature 0.8 --top-k 30 --top-p 0.9 --seed 42
+codexa generate --checkpoint outputs/experiments/new-smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --greedy
 ```
 
 To demonstrate an interrupted run, add `--until 50` to the first training command, then resume without that option. A finished checkpoint resumes as a no-op. Schedule and configuration must remain identical. SIGINT/SIGTERM request a safe stop after the current optimizer step; the resulting checkpoint records that completed step. An exception during an optimizer step leaves the previous checkpoint intact.
@@ -62,7 +62,7 @@ ruff format --check .
 mypy codexa
 codexa benchmark --config configs/smoke.yaml --device cpu --sequence 64
 codexa benchmark --config configs/50m.yaml --device cuda --sequence 1024
-codexa benchmark --config configs/250m.yaml --device cuda --sequence 2048 --steps 3 --warmup 1 --output artifacts/250m-benchmark.json
+codexa benchmark --config configs/250m.yaml --device cuda --sequence 2048 --steps 3 --warmup 1 --output outputs/benchmarks/250m-benchmark.json
 ```
 
 Benchmarks use synthetic token IDs and execute real forward/backward/AdamW steps with micro-batch one; use `--accumulation 16` to measure the primary effective batch. CUDA timing synchronizes the device and reports peak allocated memory. Estimates exclude activations unless explicitly measured. OOM is reported without substituting a smaller architecture. Throughput extrapolation from a short run is not a training completion prediction.
@@ -72,9 +72,9 @@ At 248,687,488 parameters, FP32 weights occupy 948.67 MiB; gradients another 948
 ## Mathematics
 
 ```sh
-codexa math generate --split train --count 20 --output artifacts/arithmetic-train.jsonl
-codexa math generate --split test --count 20 --output artifacts/arithmetic-test.jsonl
-codexa math evaluate --problems artifacts/arithmetic-test.jsonl --predictions artifacts/predictions.json
+codexa math generate --split train --count 20 --output outputs/datasets/arithmetic-train.jsonl
+codexa math generate --split test --count 20 --output outputs/datasets/arithmetic-test.jsonl
+codexa math evaluate --problems outputs/datasets/arithmetic-test.jsonl --predictions outputs/predictions/predictions.json
 ```
 
 Predictions are a JSON object mapping stable problem IDs to integer answer strings. Missing or malformed answers count as incorrect. Accuracy is grouped by grade and topic. Reevaluate frozen earlier topic sets after each curriculum stage to detect forgetting.
@@ -82,3 +82,45 @@ Predictions are a JSON object mapping stable problem IDs to integer answer strin
 The implemented prototype generates Grade 1 addition/subtraction within 20, exact verified answers, explanatory steps, difficulty, and stable split identities. Different random seeds change ordering, not split membership; addition operands are canonicalized to avoid reversed-pair leakage. It is a synthetic engineering demonstration, not verified educational content. See [the roadmap](docs/TRAINING_ROADMAP.md) for Grades 1–12. Mathematics training remains deferred.
 
 See [architecture](docs/ARCHITECTURE.md) and [implementation measurements](docs/IMPLEMENTATION_REPORT.md).
+
+## Public development and release status
+
+![Code license: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-blue)
+
+Implemented and locally tested: custom architecture, BPE, packing, CPU/CUDA smoke training, exact CPU resume, generation, arithmetic prototype. Experimental: short GPU throughput extrapolation and release infrastructure. Planned: production datasets, actual base pretraining and Grades 1–12 training. **No trained public Codexa model artifacts are released.** Hosted CI is configured but has not run for this local overhaul; no passing hosted-CI badge is claimed.
+
+Code supports Python 3.11–3.13; the verified local reference is Python 3.13/PyTorch 2.11.0+cu130. CPU CI covers the declared interpreter matrix; hosted results are pending. Prefer the pinned CPU profile for development:
+
+```sh
+uv venv --python 3.13 .venv
+uv pip sync requirements-cpu-lock.txt
+uv pip install --no-deps -e .
+source .venv/bin/activate
+python scripts/verify.py
+sh scripts/smoke.sh
+```
+
+For the reference NVIDIA environment, sync requirements-lock.txt instead. These profiles include release dependencies. General editable installation is `uv pip install -e '.[dev,release]'`; use the locks for reproduction. Inference exports require the optional release extra.
+
+## Repository organization
+
+Source stays in codexa (architecture, tokenizer, data, training, inference, evaluation, mathematics, release). configs retains smoke/50M/250M configuration paths and numerical values. examples/corpus contains the original public fixtures. tests holds regression tests; scripts holds bounded commands. docs contains public technical and engineering evidence. release contains local model-card and metadata proposals; .agents/skills contains reusable reviewed workflows. All ephemeral data, checkpoints, logs, predictions and exports live under ignored outputs. Agent scratch goes under ignored .agents/scratch.
+
+Existing saved smoke outputs moved to outputs/experiments; token arrays to outputs/datasets/smoke and the original tokenizer to outputs/tokenizers/smoke. The hash-verified [migration map](docs/engineering/MIGRATION_MAP.md) records every move. Existing training commands still accept explicit paths. New runs, prepared datasets and tokenizer files refuse accidental replacement. Use the smoke script for an automatically fresh run.
+
+## Safe inference artifacts and evaluation
+
+```sh
+codexa release fixture --corpus examples/corpus --output outputs/exports/fixture-NEW
+codexa release preflight --artifact outputs/exports/fixture-NEW --verification-report outputs/logs/verification.json
+codexa generate --export outputs/exports/fixture-NEW --prompt 'Test' --max-tokens 8 --greedy
+codexa evaluate --checkpoint outputs/experiments/smoke/latest.pt --data outputs/datasets/smoke
+```
+
+Fixture generation is random and meaningless; it tests serialization. Preflight never uploads. [Release instructions](docs/RELEASE_PROCESS.md) explain trusted native-checkpoint export, artifact licensing, versioning and publication blockers. Custom loading is implemented; Transformers, GGUF and llama.cpp compatibility are not claimed.
+
+## Research, contribution and limitations
+
+The research motivation is an independently implemented small base model followed by measured progressive mathematics learning, with earlier skills retained. See the [numbered roadmap](docs/TRAINING_ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [data policy](docs/DATASETS.md), [evaluation methodology](docs/EVALUATION.md), [reproducibility](docs/REPRODUCIBILITY.md), [benchmark evidence](docs/benchmarks/README.md), [contribution guide](CONTRIBUTING.md), and [security policy](SECURITY.md).
+
+Code is licensed Apache-2.0; the twelve original corpus fixtures are CC0-1.0. External datasets and model weights require separate review and are not automatically relicensed. No large-scale training or model publication is authorized by installation. Small models can produce incorrect, biased or harmful text; neither loss reduction nor fluent generated steps establishes factual or mathematical reliability. Keep generated outputs out of consequential uses without independent verification.

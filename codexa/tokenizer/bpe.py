@@ -39,6 +39,8 @@ class CodexaTokenizer:
         return self.backend.decode(ids, skip_special_tokens=skip_special_tokens)
 
     def save(self, path: str | Path) -> None:
+        if Path(path).exists():
+            raise FileExistsError(path)
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.backend.save(str(path))
 

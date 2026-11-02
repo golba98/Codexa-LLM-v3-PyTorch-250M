@@ -1,13 +1,20 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77,<83"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "codexa"
 version = "0.1.0"
-requires-python = ">=3.11"
+description = "From-scratch PyTorch language model research infrastructure"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11,<3.14"
 dependencies = ["torch>=2.9,<3", "numpy", "tokenizers>=0.22,<1", "PyYAML", "sympy"]
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
+release = ["safetensors>=0.8,<1"]
+[project.urls]
+Repository = "https://github.com/golba98/Codexa-LLM-v3-PyTorch-250M"
 [project.scripts]
 codexa = "codexa.cli:main"
 [tool.setuptools.packages.find]

@@ -46,7 +46,9 @@ def main() -> None:
         "--until", type=int, help="Stop at this optimizer step without changing the schedule"
     )
     gen = commands.add_parser("generate")
-    gen.add_argument("--checkpoint", required=True)
+    sources = gen.add_mutually_exclusive_group(required=True)
+    sources.add_argument("--checkpoint")
+    sources.add_argument("--export")
     gen.add_argument("--prompt", default="")
     gen.add_argument("--device", default="auto")
     gen.add_argument("--max-tokens", type=int, default=50)
@@ -74,6 +76,23 @@ def main() -> None:
     me.add_argument(
         "--predictions", required=True, help="JSON object mapping problem IDs to answer strings"
     )
+    exp = commands.add_parser("export")
+    exp.add_argument("--checkpoint", required=True)
+    exp.add_argument("--metadata", required=True)
+    exp.add_argument("--output", required=True)
+    rel = commands.add_parser("release").add_subparsers(dest="action", required=True)
+    fixture = rel.add_parser("fixture")
+    fixture.add_argument("--corpus", required=True)
+    fixture.add_argument("--output", required=True)
+    pre = rel.add_parser("preflight")
+    pre.add_argument("--artifact", required=True)
+    pre.add_argument("--verification-report", required=True)
+    ev = commands.add_parser("evaluate")
+    evs = ev.add_mutually_exclusive_group(required=True)
+    evs.add_argument("--checkpoint")
+    evs.add_argument("--export")
+    ev.add_argument("--data", required=True)
+    ev.add_argument("--max-batches", type=int)
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
     if args.command == "tokenizer":
@@ -88,7 +107,33 @@ def main() -> None:
         if args.resume:
             trainer.resume(args.resume)
         trainer.train(until=args.until)
+    elif args.command in ("release", "export", "evaluate"):
+        from codexa.release.commands import dispatch
+
+        dispatch(args)
     elif args.command == "generate":
+        if args.export:
+            from codexa.inference.generate import generate
+            from codexa.release.artifacts import load_export
+
+            model, tokenizer, _ = load_export(
+                args.export, args.device if args.device != "auto" else "cpu"
+            )
+            print(
+                tokenizer.decode(
+                    generate(
+                        model,
+                        [2, *tokenizer.encode(args.prompt)],
+                        max_tokens=args.max_tokens,
+                        temperature=args.temperature,
+                        top_k=args.top_k,
+                        top_p=args.top_p,
+                        greedy=args.greedy,
+                        seed=args.seed,
+                    )
+                )
+            )
+            return
         print(
             from_checkpoint(
                 args.checkpoint,
