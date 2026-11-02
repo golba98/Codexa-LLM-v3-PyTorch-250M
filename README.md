@@ -124,3 +124,17 @@ Fixture generation is random and meaningless; it tests serialization. Preflight 
 The research motivation is an independently implemented small base model followed by measured progressive mathematics learning, with earlier skills retained. See the [numbered roadmap](docs/TRAINING_ROADMAP.md), [architecture](docs/ARCHITECTURE.md), [data policy](docs/DATASETS.md), [evaluation methodology](docs/EVALUATION.md), [reproducibility](docs/REPRODUCIBILITY.md), [benchmark evidence](docs/benchmarks/README.md), [contribution guide](CONTRIBUTING.md), and [security policy](SECURITY.md).
 
 Code is licensed Apache-2.0; the twelve original corpus fixtures are CC0-1.0. External datasets and model weights require separate review and are not automatically relicensed. No large-scale training or model publication is authorized by installation. Small models can produce incorrect, biased or harmful text; neither loss reduction nor fluent generated steps establishes factual or mathematical reliability. Keep generated outputs out of consequential uses without independent verification.
+
+## M2.5: context and research dashboard
+
+The primary model now has explicit 2K/4K/8K/16K/32K profiles, opt-in linear RoPE scaling, cached autoregressive inference and activation checkpointing. Defaults retain original 2K positional semantics and the parameter count. Prompt plus generation budget must fit; generation no longer silently truncates.
+
+```sh
+codexa dashboard --list
+codexa dashboard --port 8765
+codexa context benchmark --mode both --output outputs/benchmarks/m25-context.json
+```
+
+Start normal training or `sh scripts/smoke.sh` in another terminal. New runs write independent structured telemetry; the viewer can close/restart without stopping training. Old saved metrics are readable. See [context, hook API and dashboard guide](docs/M25_CONTEXT_AND_TELEMETRY.md), [reference audit](docs/engineering/M25_REFERENCE_AUDIT.md) and [M2.5 report](docs/engineering/M25_REPORT.md).
+
+![Codexa dashboard](docs/images/m25-dashboard-desktop.jpg)

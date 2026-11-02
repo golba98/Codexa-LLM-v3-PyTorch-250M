@@ -16,6 +16,9 @@ class ModelConfig:
     dropout: float = 0.0
     rope_base: float = 10000.0
     norm_eps: float = 1e-6
+    rope_scaling: str = "none"
+    rope_factor: float = 1.0
+    attention_backend: str = "auto"
 
     def __post_init__(self) -> None:
         if min(self.layers, self.dim, self.heads, self.intermediate, self.context) <= 0:
@@ -24,6 +27,12 @@ class ModelConfig:
             raise ValueError("Width must divide heads and head dimension must be even")
         if self.vocab_size < 260 or not 0 <= self.dropout < 1:
             raise ValueError("Invalid vocabulary or dropout")
+        if self.rope_scaling not in ("none", "linear") or self.rope_factor < 1:
+            raise ValueError("Invalid RoPE scaling")
+        if self.rope_scaling == "none" and self.rope_factor != 1:
+            raise ValueError("Scaling factor requires linear scaling")
+        if self.attention_backend not in ("auto", "flash", "efficient", "math"):
+            raise ValueError("Invalid attention backend")
         if self.rope_base <= 0 or self.norm_eps <= 0:
             raise ValueError("RoPE base and norm epsilon must be positive")
 
@@ -44,6 +53,7 @@ class TrainConfig:
     checkpoint_every: int = 50
     validation_batches: int = 4
     precision: str = "auto"
+    gradient_checkpointing: bool = False
 
     def __post_init__(self) -> None:
         if (
@@ -72,11 +82,34 @@ class TrainConfig:
 
 
 @dataclass
+class InferenceConfig:
+    max_sequence: int | None = None
+    max_tokens: int = 50
+    use_cache: bool = True
+    precision: str = "fp32"
+
+    def __post_init__(self) -> None:
+        if (
+            self.max_tokens < 0
+            or (self.max_sequence is not None and self.max_sequence < 1)
+            or self.precision not in ("fp32", "bf16", "auto")
+        ):
+            raise ValueError("Invalid inference settings")
+
+
+@dataclass
 class Config:
     model: ModelConfig = field(default_factory=ModelConfig)
     training: TrainConfig = field(default_factory=TrainConfig)
 
+    inference: InferenceConfig = field(default_factory=InferenceConfig)
+
     def __post_init__(self) -> None:
+        if (
+            self.inference.max_sequence is not None
+            and self.inference.max_sequence > self.model.context
+        ):
+            raise ValueError("Inference maximum exceeds model context")
         if self.training.sequence > self.model.context:
             raise ValueError("Training sequence exceeds context")
 
@@ -85,7 +118,11 @@ class Config:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Config":
-        return cls(ModelConfig(**value["model"]), TrainConfig(**value["training"]))
+        return cls(
+            ModelConfig(**value["model"]),
+            TrainConfig(**value["training"]),
+            InferenceConfig(**value.get("inference", {})),
+        )
 
     @classmethod
     def load(cls, path: str | Path) -> "Config":

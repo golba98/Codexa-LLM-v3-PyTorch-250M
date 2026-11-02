@@ -3,23 +3,41 @@ import json
 from pathlib import Path
 from typing import Any
 
-import torch
-
-from codexa.benchmark import benchmark
-from codexa.config import Config
-from codexa.data.packing import prepare, read_documents, split_documents
-from codexa.inference.generate import from_checkpoint
-from codexa.mathematics.arithmetic import accuracy, problems
-from codexa.tokenizer.bpe import CodexaTokenizer
-from codexa.training.trainer import Trainer
-
 
 def main() -> None:
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "dashboard":
+        from codexa.dashboard.server import main as dashboard_main
+
+        dashboard_main(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "context":
+        from codexa.context import main as context_main
+
+        context_main(sys.argv[2:])
+        return
+    import torch
+
+    from codexa.benchmark import benchmark
+    from codexa.config import Config
+    from codexa.data.packing import prepare, read_documents, split_documents
+    from codexa.inference.generate import from_checkpoint
+    from codexa.mathematics.arithmetic import accuracy, problems
+    from codexa.tokenizer.bpe import CodexaTokenizer
+    from codexa.training.trainer import Trainer
+
     parser = argparse.ArgumentParser(
         description="Codexa: locally implemented, randomly initialized language models"
     )
     parser.add_argument("--threads", type=int, default=4)
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser(
+        "dashboard", add_help=False, help="Local read-only live/historical dashboard"
+    )
+    commands.add_parser(
+        "context", add_help=False, help="Context transition preparation and bounded benchmarks"
+    )
     tok = (
         commands.add_parser("tokenizer")
         .add_subparsers(dest="action", required=True)
@@ -52,12 +70,15 @@ def main() -> None:
     sources.add_argument("--export")
     gen.add_argument("--prompt", default="")
     gen.add_argument("--device", default="auto")
-    gen.add_argument("--max-tokens", type=int, default=50)
+    gen.add_argument("--max-tokens", type=int, default=None)
     gen.add_argument("--temperature", type=float, default=1.0)
     gen.add_argument("--top-k", type=int, default=0)
     gen.add_argument("--top-p", type=float, default=1.0)
     gen.add_argument("--greedy", action="store_true")
     gen.add_argument("--seed", type=int, default=42)
+    gen.add_argument("--no-cache", action="store_true")
+    gen.add_argument("--max-sequence", type=int)
+    gen.add_argument("--precision", choices=["fp32", "bf16", "auto"], default=None)
     bench = commands.add_parser("benchmark")
     bench.add_argument("--config", default="configs/smoke.yaml")
     bench.add_argument("--device", default="auto")
@@ -125,12 +146,15 @@ def main() -> None:
                     generate(
                         model,
                         [2, *tokenizer.encode(args.prompt)],
-                        max_tokens=args.max_tokens,
+                        max_tokens=args.max_tokens if args.max_tokens is not None else 50,
                         temperature=args.temperature,
                         top_k=args.top_k,
                         top_p=args.top_p,
                         greedy=args.greedy,
                         seed=args.seed,
+                        use_cache=not args.no_cache,
+                        max_sequence=args.max_sequence,
+                        precision=args.precision or "fp32",
                     )
                 )
             )
@@ -146,6 +170,9 @@ def main() -> None:
                 top_p=args.top_p,
                 greedy=args.greedy,
                 seed=args.seed,
+                use_cache=False if args.no_cache else None,
+                max_sequence=args.max_sequence,
+                precision=args.precision,
             )
         )
     elif args.command == "benchmark":

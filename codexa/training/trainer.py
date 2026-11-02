@@ -1,4 +1,5 @@
 import json
+import math
 import random
 import signal
 import time
@@ -15,6 +16,7 @@ from codexa.config import Config
 from codexa.data.packing import PackedData, Sampler, fingerprint
 from codexa.tokenizer.bpe import CodexaTokenizer
 
+from .callbacks.telemetry import Callback, EventBus
 from .checkpoint import load, restore_rng, rng_state, save_atomic
 from .optimizer import make_optimizer
 from .scheduler import make_scheduler
@@ -43,7 +45,13 @@ def choose_device(name: str) -> torch.device:
 
 class Trainer:
     def __init__(
-        self, config: Config, data: str, tokenizer: str, output: str, device: str = "auto"
+        self,
+        config: Config,
+        data: str,
+        tokenizer: str,
+        output: str,
+        device: str = "auto",
+        callbacks: tuple[Callback, ...] = (),
     ):
         self.config, self.output = config, Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
@@ -77,14 +85,32 @@ class Trainer:
         self.bf16 = supported and c.precision != "fp32"
         self.step, self.tokens, self.stop = 0, 0, False
         self.resumed = False
+        self.callbacks = callbacks
+        self.microsteps = 0
+        self.events: EventBus | None = None
+        self.model.gradient_checkpointing = c.gradient_checkpointing
 
     def amp(self) -> torch.autocast:
         return torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.bf16)
 
+    def emit(self, kind: str, **data: Any) -> None:
+        if self.events:
+            if self.device.type != "cuda" and "peak_cuda_bytes" in data:
+                data["peak_cuda_bytes"] = None
+            self.events.emit(
+                kind,
+                self.step,
+                self.tokens,
+                **{k: v for k, v in data.items() if k not in ("step", "tokens")},
+            )
+
     def checkpoint(self, name: str = "latest.pt") -> None:
+        started = time.perf_counter()
+        self.emit("checkpoint_started", identifier=name)
         save_atomic(
             {
                 "version": 1,
+                "microsteps": self.microsteps,
                 "config": self.config.to_dict(),
                 "model": self.model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
@@ -101,11 +127,19 @@ class Trainer:
             self.output / name,
         )
 
+        self.emit(
+            "checkpoint_saved",
+            identifier=name,
+            size_bytes=(self.output / name).stat().st_size,
+            duration_seconds=time.perf_counter() - started,
+            verification_status="atomic_save_only",
+        )
+
     def resume(self, path: str) -> None:
         state = load(path)
         if (
             state["version"] != 1
-            or state["config"] != self.config.to_dict()
+            or Config.from_dict(state["config"]).to_dict() != self.config.to_dict()
             or state["fingerprints"] != self.fingerprints
         ):
             raise ValueError("Resume configuration or data mismatch")
@@ -114,13 +148,22 @@ class Trainer:
         self.model.load_state_dict(state["model"])
         self.optimizer.load_state_dict(state["optimizer"])
         self.scheduler.load_state_dict(state["scheduler"])
-        self.sampler.load_state_dict(state["sampler"])
+        if "context_transition" in state and "sampler" not in state:
+            self.sampler = Sampler(self.train_data.size, self.config.training.seed)
+        else:
+            self.sampler.load_state_dict(state["sampler"])
         self.step, self.tokens = state["step"], state["tokens"]
+        self.microsteps = state.get(
+            "microsteps", self.step * Config.from_dict(state["config"]).training.accumulation
+        )
+        self.transition = state.get("context_transition")
         self.resumed = True
         restore_rng(state["rng"])
 
     @torch.no_grad()
     def validate(self) -> float:
+        started = time.perf_counter()
+        self.emit("validation_started")
         state, training = rng_state(), self.model.training
         self.model.eval()
         losses = []
@@ -129,7 +172,15 @@ class Trainer:
                 x, y = self.val_data.batch([i], self.device)
                 with self.amp():
                     losses.append(float(causal_loss(self.model(x), y)))
-            return sum(losses) / len(losses)
+            value = sum(losses) / len(losses)
+            self.emit(
+                "validation_completed",
+                validation_loss=value,
+                perplexity=math.exp(value) if value < 700 else None,
+                evaluated_tokens=len(losses) * self.config.training.sequence,
+                duration_seconds=time.perf_counter() - started,
+            )
+            return value
         finally:
             self.model.train(training)
             restore_rng(state)
@@ -139,6 +190,27 @@ class Trainer:
         end = min(until if until is not None else c.steps, c.steps)
         if not self.resumed and (self.output / "latest.pt").exists():
             raise FileExistsError("Existing checkpoint: use explicit resume or a fresh output")
+        self.events = EventBus(
+            self.output,
+            {
+                "model": self.config.model.__dict__,
+                "training": c.__dict__,
+                "parameters": self.model.parameter_count(),
+                "model_name": "Codexa v3",
+                "torch_version": str(torch.__version__),
+                "target_tokens": self.tokens
+                + max(0, c.steps - self.step) * c.batch_size * c.accumulation * c.sequence,
+                "architecture": "codexa-decoder-v1",
+                "device": str(self.device),
+                "precision": "bf16" if self.bf16 else "fp32",
+                "fingerprints": self.fingerprints,
+                "context_target": 32768,
+            },
+            self.callbacks,
+        )
+        self.emit("started", resumed=self.resumed, resumed_from_step=self.step)
+        if getattr(self, "transition", None):
+            self.emit("context_changed", transition=self.transition)
         records = []
         old = {}
 
@@ -166,8 +238,9 @@ class Trainer:
                             "Nonfinite loss; last completed checkpoint retained"
                         )
                     loss.backward()
+                    self.microsteps += 1
                     loss_value += float(loss.detach())
-                torch.nn.utils.clip_grad_norm_(
+                gradient_norm = torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), c.clip, error_if_nonfinite=True
                 )
                 lr = self.optimizer.param_groups[0]["lr"]
@@ -190,6 +263,22 @@ class Trainer:
                     if self.device.type == "cuda"
                     else 0,
                 }
+                self.emit(
+                    "step_completed",
+                    **record,
+                    gradient_norm=float(gradient_norm),
+                    clipped=bool(float(gradient_norm) + 1e-6 > c.clip),
+                    sequence_length=c.sequence,
+                    accumulation=c.accumulation,
+                    effective_batch=c.batch_size * c.accumulation,
+                    microstep=self.microsteps,
+                    cuda_allocated_bytes=torch.cuda.memory_allocated()
+                    if self.device.type == "cuda"
+                    else None,
+                    cuda_reserved_bytes=torch.cuda.memory_reserved()
+                    if self.device.type == "cuda"
+                    else None,
+                )
                 if self.step % c.validate_every == 0 or self.step == end:
                     record["validation_loss"] = self.validate()
                     print(json.dumps(record), flush=True)
@@ -199,7 +288,16 @@ class Trainer:
                 if self.step % c.checkpoint_every == 0:
                     self.checkpoint()
             self.checkpoint()
+            self.emit(
+                "interrupted" if self.stop else "completed" if self.step == c.steps else "paused"
+            )
             return records
+        except Exception as exc:
+            self.emit("failed", error_type=type(exc).__name__, message=str(exc)[:500])
+            raise
         finally:
+            if self.events:
+                self.events.close()
+                self.events = None
             for sig, previous in old.items():
                 signal.signal(sig, previous)

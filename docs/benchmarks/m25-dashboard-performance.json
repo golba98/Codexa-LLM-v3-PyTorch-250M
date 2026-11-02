@@ -1,0 +1,14 @@
+{
+  "synthetic_records": 1000000,
+  "indexed_records": 1000000,
+  "returned_rows": 2001,
+  "first_view_seconds": 0.08694174800257315,
+  "remaining_index_seconds": 6.805231387999811,
+  "history_query_seconds": 0.07142899199970998,
+  "snapshot_restart_seconds": 0.00898600000073202,
+  "process_memory_mib": {
+    "VmHWM": 29.53515625,
+    "VmRSS": 29.53515625
+  },
+  "scope": "Synthetic history backend only; not a model throughput measurement"
+}

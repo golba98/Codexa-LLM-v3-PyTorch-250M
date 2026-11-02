@@ -34,18 +34,37 @@ def generate(
     greedy: bool = False,
     seed: int = 42,
     eos: int = EOS,
+    precision: str = "fp32",
+    use_cache: bool = True,
+    max_sequence: int | None = None,
 ) -> list[int]:
     if max_tokens < 0 or temperature <= 0 or top_k < 0 or not 0 < top_p <= 1:
         raise ValueError("Invalid sampling settings")
+    if precision not in ("fp32", "bf16", "auto"):
+        raise ValueError("Invalid inference precision")
     device = next(model.parameters()).device
+    bf16 = precision != "fp32" and device.type == "cuda" and torch.cuda.is_bf16_supported()
     generator = torch.Generator(device=device).manual_seed(seed)
     ids = list(prompt) or [BOS]
+    limit = max_sequence if max_sequence is not None else model.config.context
+    if not 0 < limit <= model.config.context or len(ids) + max_tokens > limit:
+        raise ValueError(
+            "Prompt plus generation budget exceeds context; shorten prompt/budget or explicitly load a larger context profile"
+        )
+    cache = None
     training = model.training
     model.eval()
     try:
         for _ in range(max_tokens):
-            x = torch.tensor([ids[-model.config.context :]], device=device)
-            logits = model(x)[0, -1].float()
+            x = torch.tensor([ids if cache is None else ids[-1:]], device=device)
+            with torch.autocast(device.type, dtype=torch.bfloat16, enabled=bf16):
+                if use_cache:
+                    result, cache = model.forward_cached(
+                        x, cache, capacity=len(ids) + max_tokens if cache is None else None
+                    )
+                    logits = result[0, -1].float()
+                else:
+                    logits = model(x, last_logits_only=True)[0, -1].float()
             if greedy:
                 token = int(logits.argmax())
             else:
@@ -55,6 +74,10 @@ def generate(
             if token == eos:
                 break
         return ids
+    except torch.OutOfMemoryError as exc:
+        raise RuntimeError(
+            "Inference OOM: shorten prompt/budget, select BF16 when supported, or use a smaller model; no context was truncated"
+        ) from exc
     finally:
         model.train(training)
 
@@ -64,4 +87,8 @@ def from_checkpoint(path: str, prompt: str, device: str = "auto", **kwargs: obje
     model = Codexa(Config.from_dict(state["config"]).model).to(choose_device(device))
     model.load_state_dict(state["model"])
     tokenizer = CodexaTokenizer(Tokenizer.from_str(state["tokenizer_json"]))
-    return tokenizer.decode(generate(model, [BOS, *tokenizer.encode(prompt)], **kwargs))  # type: ignore[arg-type]
+    config = Config.from_dict(state["config"])
+    options = {k: v for k, v in kwargs.items() if v is not None}
+    for k in ("max_sequence", "max_tokens", "use_cache", "precision"):
+        options.setdefault(k, getattr(config.inference, k))
+    return tokenizer.decode(generate(model, [BOS, *tokenizer.encode(prompt)], **options))  # type: ignore[arg-type]

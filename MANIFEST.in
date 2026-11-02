@@ -2,10 +2,12 @@ include README.md LICENSE requirements-lock.txt requirements-cpu-lock.txt AGENTS
 recursive-include configs *.yaml
 recursive-include examples *.txt *.md LICENSE
 recursive-include tests *.py
-recursive-include docs *.md *.json
+recursive-include docs *.md *.json *.jpg
 recursive-include release *.md *.json *.txt
 recursive-include scripts *.py *.sh
 prune outputs
 prune artifacts
 prune runs
 include CONTRIBUTING.md SECURITY.md CHANGELOG.md
+include THIRD_PARTY_NOTICES.md
+recursive-include codexa/dashboard/static *
