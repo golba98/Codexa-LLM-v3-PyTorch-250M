@@ -1,0 +1,92 @@
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+@dataclass
+class ModelConfig:
+    layers: int = 2
+    dim: int = 64
+    heads: int = 4
+    intermediate: int = 176
+    vocab_size: int = 512
+    context: int = 64
+    dropout: float = 0.0
+    rope_base: float = 10000.0
+    norm_eps: float = 1e-6
+
+    def __post_init__(self) -> None:
+        if min(self.layers, self.dim, self.heads, self.intermediate, self.context) <= 0:
+            raise ValueError("Model dimensions must be positive")
+        if self.dim % self.heads or (self.dim // self.heads) % 2:
+            raise ValueError("Width must divide heads and head dimension must be even")
+        if self.vocab_size < 260 or not 0 <= self.dropout < 1:
+            raise ValueError("Invalid vocabulary or dropout")
+        if self.rope_base <= 0 or self.norm_eps <= 0:
+            raise ValueError("RoPE base and norm epsilon must be positive")
+
+
+@dataclass
+class TrainConfig:
+    steps: int = 200
+    batch_size: int = 2
+    accumulation: int = 1
+    sequence: int = 64
+    lr: float = 0.003
+    min_lr: float = 0.0003
+    warmup: int = 10
+    weight_decay: float = 0.1
+    clip: float = 1.0
+    seed: int = 42
+    validate_every: int = 25
+    checkpoint_every: int = 50
+    validation_batches: int = 4
+    precision: str = "auto"
+
+    def __post_init__(self) -> None:
+        if (
+            min(
+                self.steps,
+                self.batch_size,
+                self.accumulation,
+                self.sequence,
+                self.validate_every,
+                self.checkpoint_every,
+                self.validation_batches,
+            )
+            <= 0
+        ):
+            raise ValueError("Training counts must be positive")
+        if self.lr <= 0:
+            raise ValueError("Learning rate must be positive")
+        if not 0 <= self.warmup < self.steps or not 0 <= self.min_lr <= self.lr:
+            raise ValueError("Invalid learning rate schedule")
+        if (
+            self.clip <= 0
+            or self.weight_decay < 0
+            or self.precision not in ("auto", "fp32", "bf16")
+        ):
+            raise ValueError("Invalid optimizer or precision configuration")
+
+
+@dataclass
+class Config:
+    model: ModelConfig = field(default_factory=ModelConfig)
+    training: TrainConfig = field(default_factory=TrainConfig)
+
+    def __post_init__(self) -> None:
+        if self.training.sequence > self.model.context:
+            raise ValueError("Training sequence exceeds context")
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "Config":
+        return cls(ModelConfig(**value["model"]), TrainConfig(**value["training"]))
+
+    @classmethod
+    def load(cls, path: str | Path) -> "Config":
+        return cls.from_dict(yaml.safe_load(Path(path).read_text()))

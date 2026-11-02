@@ -1,0 +1,23 @@
+{
+  "measured": true,
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 4080",
+  "torch": "2.11.0+cu130",
+  "precision": "bf16_autocast",
+  "parameters": 248687488,
+  "weight_bytes": 994749952,
+  "gradient_bytes_estimate": 994749952,
+  "adam_moments_bytes_estimate": 1989499904,
+  "peak_cuda_allocated_bytes": 6566576128,
+  "sequence": 2048,
+  "micro_batch": 1,
+  "accumulation": 1,
+  "effective_global_batch_sequences": 1,
+  "tokens_per_step": 2048,
+  "warmup_steps": 1,
+  "measured_steps": 3,
+  "step_seconds": 0.09543380299995381,
+  "tokens_per_second": 21459.901372692766,
+  "five_billion_tokens_seconds_extrapolated": 232992.683105356,
+  "five_billion_tokens_flops_estimate": 7460624640000000000
+}

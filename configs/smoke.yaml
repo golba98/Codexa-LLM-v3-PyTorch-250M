@@ -1,0 +1,25 @@
+model:
+  context: 64
+  dim: 64
+  dropout: 0.0
+  heads: 4
+  intermediate: 176
+  layers: 2
+  norm_eps: 1.0e-06
+  rope_base: 10000.0
+  vocab_size: 512
+training:
+  accumulation: 1
+  batch_size: 2
+  checkpoint_every: 50
+  clip: 1.0
+  lr: 0.003
+  min_lr: 0.0003
+  precision: auto
+  seed: 42
+  sequence: 64
+  steps: 200
+  validate_every: 25
+  validation_batches: 4
+  warmup: 10
+  weight_decay: 0.1

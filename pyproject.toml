@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "codexa"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["torch>=2.9,<3", "numpy", "tokenizers>=0.22,<1", "PyYAML", "sympy"]
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy", "types-PyYAML"]
+[project.scripts]
+codexa = "codexa.cli:main"
+[tool.setuptools.packages.find]
+include = ["codexa*"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["cuda: CUDA tests"]
+[tool.ruff]
+line-length = 100
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+ignore_missing_imports = true

@@ -1,0 +1,23 @@
+{
+  "measured": true,
+  "device": "cpu",
+  "gpu": null,
+  "torch": "2.11.0+cu130",
+  "precision": "fp32",
+  "parameters": 133440,
+  "weight_bytes": 533760,
+  "gradient_bytes_estimate": 533760,
+  "adam_moments_bytes_estimate": 1067520,
+  "peak_cuda_allocated_bytes": null,
+  "sequence": 64,
+  "micro_batch": 1,
+  "accumulation": 1,
+  "effective_global_batch_sequences": 1,
+  "tokens_per_step": 64,
+  "warmup_steps": 2,
+  "measured_steps": 5,
+  "step_seconds": 0.002183050800158526,
+  "tokens_per_second": 29316.77082152762,
+  "five_billion_tokens_seconds_extrapolated": 170550.84376238484,
+  "five_billion_tokens_flops_estimate": 4003200000000000
+}

@@ -1,0 +1,39 @@
+{
+  "cpu_smoke_first_step": {
+    "step": 1,
+    "tokens": 128,
+    "loss": 6.2410101890563965,
+    "lr": 0.00030000000000000003,
+    "seconds": 0.005504102000486455,
+    "tokens_per_second": 23255.38298321639,
+    "peak_cuda_bytes": 0
+  },
+  "cpu_smoke_final_step": {
+    "step": 200,
+    "tokens": 25600,
+    "loss": 0.04200207069516182,
+    "lr": 0.0003,
+    "seconds": 0.0024678529989614617,
+    "tokens_per_second": 51866.94671597774,
+    "peak_cuda_bytes": 0,
+    "validation_loss": 0.6915101148188114
+  },
+  "overfit_test": {
+    "updates": 100,
+    "initial_loss": 6.161198139190674,
+    "final_loss": 0.01248475443571806
+  },
+  "pytest": "23 passed, including CUDA",
+  "ruff": "passed",
+  "mypy": "passed, 25 source files",
+  "cuda_smoke_final_step": {
+    "step": 20,
+    "tokens": 2560,
+    "loss": 3.2967185974121094,
+    "lr": 0.0029849216154039233,
+    "seconds": 0.0033466129989392357,
+    "tokens_per_second": 38247.625297747814,
+    "peak_cuda_bytes": 20758016,
+    "validation_loss": 3.34331876039505
+  }
+}

@@ -6,10 +6,10 @@ This repository provides a training system, not a pretrained language model. The
 
 ## Install
 
-Python 3.11+ is required; Python 3.11 is the reference environment. Using `uv`:
+Python 3.11+ is required; Python 3.13 is the tested environment. Using `uv`:
 
 ```sh
-uv venv --python 3.11 .venv
+uv venv --python 3.13 .venv
 source .venv/bin/activate
 uv pip install -e '.[dev]'
 ```
@@ -65,7 +65,7 @@ codexa benchmark --config configs/50m.yaml --device cuda --sequence 1024
 codexa benchmark --config configs/250m.yaml --device cuda --sequence 2048 --steps 3 --warmup 1 --output artifacts/250m-benchmark.json
 ```
 
-Benchmarks execute real forward/backward/AdamW steps with micro-batch one; use `--accumulation 16` to measure the primary effective batch. CUDA timing synchronizes the device and reports peak allocated memory. Estimates exclude activations unless explicitly measured. OOM is reported without substituting a smaller architecture. Throughput extrapolation from a short run is not a training completion prediction.
+Benchmarks use synthetic token IDs and execute real forward/backward/AdamW steps with micro-batch one; use `--accumulation 16` to measure the primary effective batch. CUDA timing synchronizes the device and reports peak allocated memory. Estimates exclude activations unless explicitly measured. OOM is reported without substituting a smaller architecture. Throughput extrapolation from a short run is not a training completion prediction.
 
 At 248,687,488 parameters, FP32 weights occupy 948.67 MiB; gradients another 948.67 MiB; Adam moments about 1,897.33 MiB. This 3.71 GiB subtotal excludes activations, logits, optimizer intermediates, allocator reservation, and CUDA context. BF16 autocast does not halve these FP32 states. Availability of 16GB VRAM alone does not establish that a desired batch fits.
 
