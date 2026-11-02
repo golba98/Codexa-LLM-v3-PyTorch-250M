@@ -62,6 +62,12 @@ def main() -> None:
     train.add_argument("--device", default="auto")
     train.add_argument("--resume")
     train.add_argument(
+        "--ui",
+        choices=["auto", "terminal", "none"],
+        default="auto",
+        help="Auto: Rich terminal dashboard on a capable TTY; none: headless logs",
+    )
+    train.add_argument(
         "--until", type=int, help="Stop at this optimizer step without changing the schedule"
     )
     gen = commands.add_parser("generate")
@@ -128,7 +134,7 @@ def main() -> None:
         )
         if args.resume:
             trainer.resume(args.resume)
-        trainer.train(until=args.until)
+        trainer.train(until=args.until, ui=args.ui)
     elif args.command in ("release", "export", "evaluate"):
         from codexa.release.commands import dispatch
 

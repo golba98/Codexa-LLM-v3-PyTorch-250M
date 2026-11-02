@@ -63,12 +63,48 @@ class EventBus:
         self.seen: set[tuple[str, int]] = set()
         self.failed = False
         self.gpu_snapshot: dict[str, Any] | None = None
+        self.host_snapshot: dict[str, Any] | None = None
+        self.cpu_sample: tuple[int, int] | None = None
         self.stop_probe = threading.Event()
-        if str(metadata.get("device", "")).startswith("cuda"):
-            threading.Thread(target=self.probe_gpu, daemon=True).start()
+        self.cuda_probe = str(metadata.get("device", "")).startswith("cuda")
+        threading.Thread(target=self.probe_system, daemon=True).start()
 
-    def probe_gpu(self) -> None:
+    def probe_host(self) -> dict[str, Any] | None:
+        try:
+            memory = {
+                line.split()[0].rstrip(":"): int(line.split()[1]) * 1024
+                for line in Path("/proc/meminfo").read_text().splitlines()
+            }
+            rss = next(
+                int(line.split()[1]) * 1024
+                for line in Path("/proc/self/status").read_text().splitlines()
+                if line.startswith("VmRSS:")
+            )
+            ticks = list(map(int, Path("/proc/stat").read_text().splitlines()[0].split()[1:9]))
+            total, idle = sum(ticks), ticks[3] + ticks[4]
+            utilization = None
+            if self.cpu_sample and total > self.cpu_sample[0]:
+                utilization = 100 * (1 - (idle - self.cpu_sample[1]) / (total - self.cpu_sample[0]))
+            self.cpu_sample = total, idle
+            return {
+                "available_ram_bytes": memory.get("MemAvailable"),
+                "total_ram_bytes": memory.get("MemTotal"),
+                "process_rss_bytes": rss,
+                "cpu_utilization_percent": utilization,
+                "load_1m": os.getloadavg()[0],
+                "sampled_at": datetime.now(UTC).isoformat(),
+                "scope": "host /proc",
+            }
+        except (OSError, ValueError, IndexError, StopIteration):
+            return None
+
+    def probe_system(self) -> None:
         while not self.stop_probe.is_set():
+            self.host_snapshot = self.probe_host()
+            if not self.cuda_probe:
+                self.stop_probe.wait(2)
+                continue
+            self.gpu_snapshot = None
             try:
                 r = subprocess.run(
                     [
@@ -93,13 +129,14 @@ class EventBus:
                     }
             except (OSError, ValueError, subprocess.TimeoutExpired):
                 self.gpu_snapshot = None
-            self.stop_probe.wait(5)
+            self.stop_probe.wait(2)
 
     def emit(self, kind: str, step: int, tokens: int, **data: Any) -> None:
         if (kind, step) in self.seen and kind == "step_completed":
             return
         if kind == "step_completed":
             data["gpu_system"] = self.gpu_snapshot
+            data["host_system"] = self.host_snapshot
         self.seen.add((kind, step))
         self.seq += 1
         event = TrainingEvent(
@@ -115,13 +152,16 @@ class EventBus:
             data,
         )
         failures = []
+        disabled = []
         for cb in list(self.callbacks):
             try:
                 cb.on_event(replace(event, data=deepcopy(event.data)))
             except Exception as exc:  # noqa: BLE001 - observer isolation
                 self.callbacks.remove(cb)
                 failures.append(type(exc).__name__)
-                warnings.warn(f"Callback disabled: {type(exc).__name__}", stacklevel=2)
+                disabled.append(type(cb).__name__)
+                if not getattr(cb, "silent_failure", False):
+                    warnings.warn(f"Callback disabled: {type(exc).__name__}", stacklevel=2)
         if self.failed:
             return
         try:
@@ -146,7 +186,13 @@ class EventBus:
             warnings.warn("Telemetry persistence degraded; training continues", stacklevel=2)
 
         if failures and not self.failed:
-            self.emit("warning", step, tokens, observer_errors=failures)
+            self.emit(
+                "warning",
+                step,
+                tokens,
+                observer_errors=failures,
+                message="Observer disabled: " + ", ".join(disabled),
+            )
 
     def close(self) -> None:
         self.stop_probe.set()

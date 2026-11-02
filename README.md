@@ -11,7 +11,7 @@ Python 3.11+ is required; Python 3.13 is the tested environment. Using `uv`:
 ```sh
 uv venv --python 3.13 .venv
 source .venv/bin/activate
-uv pip install -e '.[dev,release]'
+uv pip install -e '.[dev,release,terminal]'
 ```
 
 For an exact reproduction of the tested environment, use `uv pip sync requirements-lock.txt`, then `uv pip install --no-deps -e .`. The lock records the Linux NVIDIA environment and is not portable to all platforms. For CPU-only installations, install a compatible PyTorch CPU wheel from https://download.pytorch.org/whl/cpu before installing this package. No local CUDA toolkit is required for packaged CUDA runtimes; an appropriate NVIDIA driver is required.
@@ -52,6 +52,20 @@ For larger models first prepare a permitted, sufficiently diverse local corpus a
 Training uses AdamW, warmup/cosine scheduling, accumulation, gradient clipping, and CUDA BF16 autocast when available. Parameters, gradients, and Adam moments remain FP32; CPU and unsupported devices use FP32. `precision: fp32` disables autocast. A `bf16` request also safely falls back if unsupported. There is no FP16 path or loss scaler. Effective batch sequences = batch size × accumulation; target tokens per update additionally multiply sequence length. Metrics are appended to the run's JSONL file.
 
 Checkpoints include optimizer/scheduler, consumed tokens, sampler order/cursor, all RNG states, configuration, and the tokenizer JSON. Atomic same-directory replacement protects the previous checkpoint from interrupted writes. Exact resume requires the same configuration, data, device type, and precision. Bitwise CPU resumption is tested; GPU kernels, library versions, and hardware can affect numerical reproducibility. Checkpoints from this project use PyTorch's restricted `weights_only` loader.
+
+## Terminal training dashboard
+
+Training automatically opens the full Rich terminal dashboard on a capable TTY when the optional `terminal` extra is installed. It adapts v1’s bordered panels, colored status badges, sparklines and recovery view to v3’s existing telemetry callbacks.
+
+```sh
+codexa train --config configs/smoke.yaml --data outputs/datasets/new-smoke --tokenizer outputs/tokenizers/new-smoke/tokenizer.json --output outputs/experiments/terminal-smoke --device cpu --ui terminal
+# Use a fresh output for a separate headless run:
+codexa train --config configs/smoke.yaml --data outputs/datasets/new-smoke --tokenizer outputs/tokenizers/new-smoke/tokenizer.json --output outputs/experiments/headless-smoke --device cpu --ui none
+```
+
+`--ui auto` is the default. Missing Rich, redirected output or `TERM=dumb` falls back to persisted metrics and ordinary logs. `Ctrl+C` requests the existing safe checkpoint and stop; no raw keyboard mode is installed. Rendering runs in a separate process with bounded nonblocking updates and needs **no HTTP server or port**. Narrow terminals select a compact panel layout. The browser viewer remains independently available via `codexa dashboard`. See the [terminal guide and reference audit](docs/TERMINAL_DASHBOARD.md) and [acceptance report](docs/engineering/TERMINAL_DASHBOARD_REPORT.md).
+
+![Real terminal training capture](docs/images/terminal-training-full.png)
 
 ## Tests and benchmarks
 
@@ -100,7 +114,7 @@ python scripts/verify.py
 sh scripts/smoke.sh
 ```
 
-For the reference NVIDIA environment, sync requirements-lock.txt instead. These profiles include release dependencies. General editable installation is `uv pip install -e '.[dev,release]'`; use the locks for reproduction. Inference exports require the optional release extra.
+For the reference NVIDIA environment, sync requirements-lock.txt instead. These profiles include release dependencies. General editable installation is `uv pip install -e '.[dev,release,terminal]'`; use the locks for reproduction. Inference exports require the optional release extra.
 
 ## Repository organization
 

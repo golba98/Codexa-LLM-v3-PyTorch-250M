@@ -89,6 +89,7 @@ class Trainer:
         self.microsteps = 0
         self.events: EventBus | None = None
         self.model.gradient_checkpointing = c.gradient_checkpointing
+        self.best_validation_loss: float | None = None
 
     def amp(self) -> torch.autocast:
         return torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.bf16)
@@ -111,6 +112,7 @@ class Trainer:
             {
                 "version": 1,
                 "microsteps": self.microsteps,
+                "best_validation_loss": self.best_validation_loss,
                 "config": self.config.to_dict(),
                 "model": self.model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
@@ -158,21 +160,32 @@ class Trainer:
         )
         self.transition = state.get("context_transition")
         self.resumed = True
+        self.best_validation_loss = state.get("best_validation_loss")
         restore_rng(state["rng"])
 
     @torch.no_grad()
     def validate(self) -> float:
         started = time.perf_counter()
-        self.emit("validation_started")
+        batches = min(self.config.training.validation_batches, self.val_data.size)
+        self.emit("validation_started", total_batches=batches)
         state, training = rng_state(), self.model.training
         self.model.eval()
         losses = []
         try:
-            for i in range(min(self.config.training.validation_batches, self.val_data.size)):
+            progress_at = started
+            for i in range(batches):
                 x, y = self.val_data.batch([i], self.device)
                 with self.amp():
                     losses.append(float(causal_loss(self.model(x), y)))
+                if time.perf_counter() - progress_at >= 0.25 or i + 1 == batches:
+                    self.emit("validation_progress", completed_batches=i + 1, total_batches=batches)
+                    progress_at = time.perf_counter()
             value = sum(losses) / len(losses)
+            self.best_validation_loss = (
+                value
+                if self.best_validation_loss is None
+                else min(self.best_validation_loss, value)
+            )
             self.emit(
                 "validation_completed",
                 validation_loss=value,
@@ -185,11 +198,16 @@ class Trainer:
             self.model.train(training)
             restore_rng(state)
 
-    def train(self, until: int | None = None, handle_signals: bool = True) -> list[dict[str, Any]]:
+    def train(
+        self, until: int | None = None, handle_signals: bool = True, ui: str = "auto"
+    ) -> list[dict[str, Any]]:
+        from .terminal import choose_terminal
+
         c = self.config.training
         end = min(until if until is not None else c.steps, c.steps)
         if not self.resumed and (self.output / "latest.pt").exists():
             raise FileExistsError("Existing checkpoint: use explicit resume or a fresh output")
+        terminal, ui_warning = choose_terminal(ui)
         self.events = EventBus(
             self.output,
             {
@@ -203,12 +221,27 @@ class Trainer:
                 "architecture": "codexa-decoder-v1",
                 "device": str(self.device),
                 "precision": "bf16" if self.bf16 else "fp32",
+                "gpu_name": torch.cuda.get_device_name(self.device)
+                if self.device.type == "cuda"
+                else None,
+                "optimizer": "AdamW · warmup/cosine",
                 "fingerprints": self.fingerprints,
                 "context_target": 32768,
             },
-            self.callbacks,
+            self.callbacks + ((terminal,) if terminal else ()),
         )
-        self.emit("started", resumed=self.resumed, resumed_from_step=self.step)
+        self.emit(
+            "started",
+            resumed=self.resumed,
+            resumed_from_step=self.step,
+            best_validation_loss=self.best_validation_loss,
+            metadata=self.events.summary["metadata"],
+        )
+        if ui_warning:
+            import warnings
+
+            self.emit("warning", message=ui_warning)
+            warnings.warn(ui_warning, stacklevel=2)
         if getattr(self, "transition", None):
             self.emit("context_changed", transition=self.transition)
         records = []
@@ -281,7 +314,8 @@ class Trainer:
                 )
                 if self.step % c.validate_every == 0 or self.step == end:
                     record["validation_loss"] = self.validate()
-                    print(json.dumps(record), flush=True)
+                    if terminal is None:
+                        print(json.dumps(record), flush=True)
                 records.append(record)
                 with (self.output / "metrics.jsonl").open("a") as f:
                     f.write(json.dumps(record) + "\n")
@@ -296,8 +330,12 @@ class Trainer:
             self.emit("failed", error_type=type(exc).__name__, message=str(exc)[:500])
             raise
         finally:
-            if self.events:
-                self.events.close()
-                self.events = None
-            for sig, previous in old.items():
-                signal.signal(sig, previous)
+            try:
+                if self.events:
+                    self.events.close()
+                    self.events = None
+            finally:
+                if terminal:
+                    terminal.close()
+                for sig, previous in old.items():
+                    signal.signal(sig, previous)
