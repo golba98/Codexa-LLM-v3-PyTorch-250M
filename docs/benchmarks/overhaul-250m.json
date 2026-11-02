@@ -22,7 +22,7 @@
   "five_billion_tokens_flops_estimate": 7460624640000000000,
   "provenance": {
     "baseline_commit": "b8588ed",
-    "phase": "local overhaul working tree; exact tree digest in verification report",
+    "phase": "local overhaul working tree; exact executed tree digest not captured; code associated with overhaul commit",
     "python": "3.13.14",
     "threads": 4,
     "method": "one warmup, three synthetic-token forward/backward/AdamW steps; micro-batch one",

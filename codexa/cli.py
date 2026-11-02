@@ -1,6 +1,7 @@
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -165,6 +166,21 @@ def main() -> None:
                 "sequence": args.sequence,
                 "accumulation": args.accumulation,
             }
+        import platform
+
+        from codexa.data.packing import fingerprint
+
+        provenance: dict[str, Any] = {
+            "config_sha256": fingerprint(args.config),
+            "python": platform.python_version(),
+            "cuda_runtime": torch.version.cuda,
+            "threads": torch.get_num_threads(),
+        }
+        if (Path.cwd() / ".git").exists():
+            from codexa.repository import source_identity
+
+            provenance["source"] = source_identity()
+        result["provenance"] = provenance
         text = json.dumps(result, indent=2)
         print(text)
         if args.output:
