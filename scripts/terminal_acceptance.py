@@ -20,6 +20,45 @@ from pathlib import Path
 import pyte
 
 
+class FrameCapture(pyte.Screen):
+    """Capture complete Rich frames at VT boundaries, independent of OS read chunks."""
+
+    def __init__(self, columns, lines):
+        self.frames = []
+        super().__init__(columns, lines)
+
+    def capture_frame(self):
+        if not hasattr(self, "buffer"):
+            return
+        display = "\n".join(self.display)
+        if "CODEXA" not in display or not ("Training" in display or "compact" in display):
+            return
+        if self.frames and self.frames[-1]["text"] == display:
+            return
+        self.frames.append(
+            {
+                "text": display,
+                "width": self.columns,
+                "height": self.lines,
+                "cells": [
+                    [self.buffer[y][x] for x in range(self.columns)] for y in range(self.lines)
+                ],
+            }
+        )
+        if len(self.frames) > 40:
+            self.frames.pop(1)
+
+    def cursor_position(self, line=None, column=None):
+        if line in (None, 0, 1) and column in (None, 0, 1):
+            self.capture_frame()
+        super().cursor_position(line, column)
+
+    def reset_mode(self, *modes, **kwargs):
+        if kwargs.get("private") and 1049 in modes:
+            self.capture_frame()
+        super().reset_mode(*modes, **kwargs)
+
+
 def capture(a):
     if not 1 <= a.until <= 200:
         raise ValueError("Acceptance is bounded to 1–200 optimizer steps")
@@ -56,11 +95,11 @@ def capture(a):
     process = subprocess.Popen(
         command, stdin=slave, stdout=slave, stderr=slave, start_new_session=True, env=env
     )
-    screen = pyte.Screen(width, height)
+    screen = FrameCapture(width, height)
     stream = pyte.Stream(screen)
     decoder = codecs.getincrementaldecoder("utf-8")("replace")
     raw = bytearray()
-    frames = []
+    frames = screen.frames
     metrics_offset = 0
     interrupt_sent = False
     resized = False
@@ -75,25 +114,7 @@ def capture(a):
                 if not chunk:
                     break
                 raw.extend(chunk)
-                # Capture the final alternate-screen frame BEFORE Rich restores the prompt.
-                text = decoder.decode(chunk)
-                for part in re.split(r"(\x1b\[\?1049l)", text):
-                    if part == "\x1b[?1049l":
-                        continue
-                    stream.feed(part)
-                    display = "\n".join(screen.display)
-                    if "CODEXA" in display and ("Training" in display or "compact" in display):
-                        frame = {
-                            "text": display,
-                            "width": width,
-                            "height": height,
-                            "cells": [
-                                [screen.buffer[y][x] for x in range(width)] for y in range(height)
-                            ],
-                        }
-                        frames.append(frame)
-                        if len(frames) > 40:
-                            frames.pop(1)
+                stream.feed(decoder.decode(chunk))
             metric_path = a.output / "run/events.jsonl"
             current_step = 0
             if metric_path.exists():
@@ -125,6 +146,7 @@ def capture(a):
             process.wait(timeout=5)
         os.close(master)
         os.close(slave)
+    screen.capture_frame()
     (a.output / "terminal.ansi").write_bytes(raw)
     events = [json.loads(line) for line in (a.output / "run/events.jsonl").read_text().splitlines()]
     steps = [r for r in events if r["event"] == "step_completed"]

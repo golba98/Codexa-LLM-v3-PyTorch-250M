@@ -240,7 +240,7 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode):
     pytest.importorskip("pyte")
     data, tok, _ = prepared
     output = tmp_path / "pty"
-    subprocess.run(
+    result = subprocess.run(
         [
             sys.executable,
             "scripts/terminal_acceptance.py",
@@ -259,11 +259,12 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode):
             "--ui",
             mode,
         ],
-        check=True,
+        check=False,
         timeout=40,
         capture_output=True,
         text=True,
     )
+    assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads((output / "acceptance.json").read_text())
     assert report["last_step"] == 80 and report["last_event"] == "paused"
     assert report["cursor_restored"] and report["termios_unchanged"]
@@ -303,5 +304,84 @@ def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
         assert b"\x1b[?25h\x1b[?1049l" in os.read(master, 4096)
     finally:
         stream.close()
+        os.close(master)
+        os.close(slave)
+
+
+def test_frame_capture_chunk_independence():
+    import runpy
+
+    pytest.importorskip("pyte")
+    import pyte
+
+    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    raw = "\x1b[?1049h\x1b[HCODEXA 0 / 200  0.0%\r\nTraining\x1b[HCODEXA 80 / 200  40.0%\r\nTraining\x1b[?1049l"
+    for chunks in ([raw], list(raw)):
+        screen = capture(60, 24)
+        stream = pyte.Stream(screen)
+        for chunk in chunks:
+            stream.feed(chunk)
+        assert len(screen.frames) == 2
+        assert "0 / 200" in screen.frames[0]["text"]
+        assert "80 / 200" in screen.frames[1]["text"]
+
+
+def test_worker_preserves_queued_startup(monkeypatch):
+    import fcntl
+    import pty
+    import runpy
+    import select
+    import struct
+    import subprocess
+    import sys
+    import termios
+
+    pytest.importorskip("rich")
+    pyte = pytest.importorskip("pyte")
+    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 60, 0, 0))
+    state = TerminalState()
+    state.update(event("started", metadata={"training": {"steps": 200}}))
+    parent.send(json.dumps({"snapshot": state.snapshot(), "close": False}).encode())
+    state.update(event("step_completed", 80, loss=1.25))
+    state.update(event("paused", 80))
+    parent.send(json.dumps({"snapshot": state.snapshot(), "close": True}).encode())
+    monkeypatch.setenv("TERM", "xterm-256color")
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "codexa.training.terminal.worker",
+            str(child.fileno()),
+            str(os.getpid()),
+        ],
+        pass_fds=(child.fileno(),),
+        stdout=slave,
+        stderr=slave,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    child.close()
+    raw = bytearray()
+    deadline = time.monotonic() + 10
+    try:
+        while time.monotonic() < deadline:
+            ready, _, _ = select.select([master], [], [], 0.1)
+            if ready:
+                raw.extend(os.read(master, 65536))
+            elif process.poll() is not None:
+                break
+        assert process.wait(timeout=1) == 0
+        screen = capture(60, 24)
+        pyte.Stream(screen).feed(raw.decode())
+        assert any("0 / 200" in f["text"] for f in screen.frames)
+        assert any("80 / 200" in f["text"] for f in screen.frames)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=2)
+        parent.close()
         os.close(master)
         os.close(slave)

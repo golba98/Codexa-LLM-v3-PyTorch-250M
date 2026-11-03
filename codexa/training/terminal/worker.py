@@ -47,9 +47,14 @@ def main() -> None:
                     packet = json.loads(channel.recv(65536))
                 except BlockingIOError:
                     break
+                first = snapshot is None
                 snapshot = packet["snapshot"]
                 received = time.monotonic()
                 stopping = stopping or packet.get("close", False)
+                if first:
+                    # Startup is a real lifecycle state; don't coalesce it away
+                    # when a very short run finishes before this child starts.
+                    live.update(frame(snapshot, console.width, console.height), refresh=True)
             if snapshot is not None:
                 view = snapshot.copy()
                 if view["status"] not in ("completed", "paused", "interrupted", "failed"):
