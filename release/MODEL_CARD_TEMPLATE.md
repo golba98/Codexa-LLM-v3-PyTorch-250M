@@ -18,4 +18,4 @@ Datasets and permissions: {{datasets}}. Compute and hardware: {{compute}}. Sourc
 Results: {{evaluation}}. Capabilities: {{capabilities}}. Intended/out-of-scope uses: {{uses}}. Known limitations, bias and safety: {{limitations}}.
 
 ## Requirements and licensing
-Inference hardware/memory: {{requirements}}. Weight license and review: {{license}}. Code and datasets have separate licenses. Source: https://github.com/golba98/Codexa-LLM-v3-PyTorch-250M. Documentation: docs/RELEASE_PROCESS.md.
+Inference hardware/memory: {{requirements}}. Weight license and review: {{license}}. Code and datasets have separate licenses. Source: https://github.com/golba98/Codexa-LLM-v3-PyTorch-250M. Documentation: docs/RELEASE.md.

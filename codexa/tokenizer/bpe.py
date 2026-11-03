@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from pathlib import Path
 
 from tokenizers import Tokenizer, decoders, models, pre_tokenizers, trainers
@@ -13,7 +14,7 @@ class CodexaTokenizer:
             raise ValueError("Incompatible special tokens")
 
     @classmethod
-    def train(cls, documents: list[str], vocab_size: int) -> "CodexaTokenizer":
+    def train(cls, documents: Iterable[str], vocab_size: int) -> "CodexaTokenizer":
         backend = Tokenizer(models.BPE(unk_token="<unk>"))
         backend.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
         backend.decoder = decoders.ByteLevel()

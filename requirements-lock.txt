@@ -65,3 +65,6 @@ mdurl==0.1.2
 rich==14.2.0
 pyte==0.8.2
 wcwidth==0.9.4
+
+# Optional Parquet ingestion, verified with M3
+pyarrow==23.0.1

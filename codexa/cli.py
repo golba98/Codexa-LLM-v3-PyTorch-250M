@@ -17,6 +17,18 @@ def main() -> None:
 
         context_main(sys.argv[2:])
         return
+    if (
+        len(sys.argv) > 2
+        and sys.argv[1] in ("data", "tokenizer")
+        and (
+            sys.argv[2] in ("curate", "verify", "freeze", "sample", "evaluate")
+            or "--dataset" in sys.argv
+        )
+    ):
+        from codexa.data.commands import main as data_main
+
+        data_main(sys.argv[1:])
+        return
     import torch
 
     from codexa.benchmark import benchmark
@@ -38,19 +50,19 @@ def main() -> None:
     commands.add_parser(
         "context", add_help=False, help="Context transition preparation and bounded benchmarks"
     )
-    tok = (
-        commands.add_parser("tokenizer")
-        .add_subparsers(dest="action", required=True)
-        .add_parser("train")
+    tokenizer_actions = commands.add_parser("tokenizer").add_subparsers(
+        dest="action", required=True
     )
+    tok = tokenizer_actions.add_parser("train", help="Fit BPE; production mode uses --dataset")
+    for action in ("evaluate", "freeze"):
+        tokenizer_actions.add_parser(action, help="Production tokenizer " + action)
     tok.add_argument("--corpus", required=True)
     tok.add_argument("--vocab-size", type=int, default=512)
     tok.add_argument("--output", required=True)
-    data = (
-        commands.add_parser("data")
-        .add_subparsers(dest="action", required=True)
-        .add_parser("prepare")
-    )
+    data_actions = commands.add_parser("data").add_subparsers(dest="action", required=True)
+    data = data_actions.add_parser("prepare", help="Tokenize; production mode uses --dataset")
+    for action in ("sample", "curate", "verify"):
+        data_actions.add_parser(action, help="Production dataset " + action)
     data.add_argument("--corpus", required=True)
     data.add_argument("--tokenizer", required=True)
     data.add_argument("--output", required=True)
@@ -121,6 +133,7 @@ def main() -> None:
     evs.add_argument("--export")
     ev.add_argument("--data", required=True)
     ev.add_argument("--max-batches", type=int)
+    ev.add_argument("--split", choices=["val", "test"], default="val")
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
     if args.command == "tokenizer":

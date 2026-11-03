@@ -19,6 +19,8 @@ subprocess.run(
         "release",
         "--extra",
         "terminal",
+        "--extra",
+        "data",
         "--python-version",
         "3.11" if a.profile == "cpu" else "3.13",
         "--constraint",

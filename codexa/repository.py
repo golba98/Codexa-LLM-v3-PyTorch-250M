@@ -46,12 +46,21 @@ def check_repository() -> None:
         if p.is_file() and secret_findings(p.read_text(errors="replace")):
             raise ValueError("Potential secret in " + name + " (redacted)")
     for path, ignored in [
+        ("README.md", False),
+        ("CHANGELOG.md", False),
+        ("codexa/data/production.py", False),
+        ("docs/DATASETS.md", False),
+        (".agent-reports/report.md", True),
+        ("docs/_drafts/plan.md", True),
+        ("nested/CLAUDE.md", True),
+        ("outputs/datasets/train.bin", True),
+        ("outputs/tokenizers/tokenizer.json", True),
         ("AGENTS.md", False),
         ("nested/AGENTS.md", True),
         ("AGENTS.override.md", True),
         (".agents/scratch/task.md", True),
         (".agents/skills/dataset-audit/SKILL.md", False),
-        ("docs/engineering/REPOSITORY_AUDIT.md", False),
+        ("docs/ARCHITECTURE.md", False),
         ("requirements-lock.txt", False),
         ("outputs/model.pt", True),
         (".env", True),

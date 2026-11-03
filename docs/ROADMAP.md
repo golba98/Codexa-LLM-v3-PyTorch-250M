@@ -50,3 +50,7 @@ Evaluate accuracy by grade/topic/difficulty alongside general language quality. 
 | M11 | Post-release research and scaling | M10 | Reproducible comparisons, refined datasets, evidence-based capacity decisions | Benchmark overfitting, compute cost |
 
 No completion dates are promised. Existing smoke evidence partially supports M2/M4/M5 but does not close sustained research gates. M7 and mathematics training must never start automatically.
+
+## M3 readiness sequence
+
+A: Validate bounded ingestion, provenance, splitting and candidate freezing. B: Execute bounded CPU/CUDA smoke training with the new loader and recovery. C: Run a 100M-token pilot only after explicit authorization and dataset/tokenizer/contamination/resource review. D: Review pilot evidence before authorizing the full approximately 5B-token base run. E: Evaluate held-out language performance and consider continued pretraining. F: Develop Grade 1–12 specialization while reevaluating general language and earlier topics. Neither a verified pipeline nor a frozen candidate authorizes stages C–F. See DATASETS.md for measured sample scope, theoretical resource budgets and remaining gates.

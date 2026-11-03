@@ -56,3 +56,31 @@ Thumbs.db
 /.agents/sessions/
 /.codex/
 /.claude/
+# Local agent material: deliberate public docs and skills stay trackable
+/.agent-local/
+/.agent-scratch/
+/.agent-reports/
+/.local/
+/scratch/
+/docs/_drafts/
+/docs/_generated/
+**/CLAUDE.md
+**/CLAUDE.local.md
+**/GEMINI.md
+/AGENT_*.md
+/HANDOFF*.md
+/SESSION_*.md
+/PROGRESS*.md
+# Additional runtime outputs; no broad Markdown/JSON ignore
+/checkpoints/
+/tokenizers/
+/datasets/
+/downloads/
+/wandb/
+/tensorboard/
+*.partial
+*.parquet
+*.arrow
+**/tokenizer.json
+**/vocab.json
+**/merges.txt

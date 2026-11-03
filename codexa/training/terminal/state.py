@@ -33,7 +33,7 @@ class TerminalState:
             self.metadata = d.get("metadata", {})
             self.resumed = bool(d.get("resumed"))
             self.best = d.get("best_validation_loss")
-            self.status, self.phase = "running", "Base pretraining"
+            self.status, self.phase = "running", self.metadata.get("phase", "Base pretraining")
         elif e.event == "step_completed":
             self.metrics = d.copy()
             peak = d.get("peak_cuda_bytes")
@@ -44,7 +44,7 @@ class TerminalState:
             if isinstance(d.get("tokens_per_second"), (float, int)):
                 self.speeds.append(d["tokens_per_second"])
             self.timings.append((e.step, e.elapsed_seconds))
-            self.status, self.phase = "running", "Base pretraining"
+            self.status, self.phase = "running", self.metadata.get("phase", "Base pretraining")
         elif e.event == "validation_started":
             self.status, self.phase = "validating", "Validation"
             self.validation.update(completed_batches=0, total_batches=d.get("total_batches"))
@@ -55,12 +55,12 @@ class TerminalState:
             value = d.get("validation_loss")
             if value is not None:
                 self.best = value if self.best is None else min(self.best, value)
-            self.status, self.phase = "running", "Base pretraining"
+            self.status, self.phase = "running", self.metadata.get("phase", "Base pretraining")
         elif e.event == "checkpoint_started":
             self.status, self.phase = "checkpointing", "Saving checkpoint"
         elif e.event == "checkpoint_saved":
             self.checkpoint = {**d, "step": e.step, "timestamp": e.timestamp}
-            self.status, self.phase = "running", "Base pretraining"
+            self.status, self.phase = "running", self.metadata.get("phase", "Base pretraining")
         elif e.event in ("paused", "completed", "interrupted", "failed"):
             self.status, self.phase = e.event, "Run finished"
         if e.event not in ("step_completed", "validation_progress"):

@@ -62,25 +62,45 @@ class Trainer:
         tok = CodexaTokenizer.load(tokenizer)
         if tok.backend.get_vocab_size() != config.model.vocab_size:
             raise ValueError("Tokenizer vocabulary differs from model")
-        self.train_data = PackedData(Path(data) / "train.bin", c.sequence)
-        self.val_data = PackedData(Path(data) / "val.bin", c.sequence)
         manifest = json.loads((Path(data) / "manifest.json").read_text())
-        self.fingerprints = {
-            name: fingerprint(Path(data) / f"{name}.bin") for name in ("train", "val")
-        }
-        self.fingerprints["tokenizer"] = fingerprint(tokenizer)
-        if manifest["tokenizer_hash"] != self.fingerprints["tokenizer"] or any(
-            manifest["splits"][name]["sha256"] != self.fingerprints[name]
-            for name in ("train", "val")
-        ):
-            raise ValueError("Prepared data fingerprint mismatch")
-        for split in (self.train_data, self.val_data):
-            if int(split.tokens.max()) >= config.model.vocab_size:
-                raise ValueError("Token ID outside vocabulary")
+        self.train_data: Any
+        self.val_data: Any
+        production = manifest.get("version") == 2
+        if production:
+            if manifest["vocab_size"] != config.model.vocab_size:
+                raise ValueError("Dataset vocabulary mismatch")
+            from codexa.data.production import ShardedData, digest
+
+            self.train_data = ShardedData(data, "train", c.sequence)
+            self.val_data = ShardedData(data, "val", c.sequence)
+            self.fingerprints = {
+                "dataset": digest(Path(data) / "manifest.json"),
+                "tokenizer": fingerprint(tokenizer),
+            }
+            if manifest["tokenizer_hash"] != self.fingerprints["tokenizer"]:
+                raise ValueError("Tokenizer fingerprint mismatch")
+        else:
+            self.train_data = PackedData(Path(data) / "train.bin", c.sequence)
+            self.val_data = PackedData(Path(data) / "val.bin", c.sequence)
+            manifest = json.loads((Path(data) / "manifest.json").read_text())
+            self.fingerprints = {
+                name: fingerprint(Path(data) / f"{name}.bin") for name in ("train", "val")
+            }
+            self.fingerprints["tokenizer"] = fingerprint(tokenizer)
+            if manifest["tokenizer_hash"] != self.fingerprints["tokenizer"] or any(
+                manifest["splits"][name]["sha256"] != self.fingerprints[name]
+                for name in ("train", "val")
+            ):
+                raise ValueError("Prepared data fingerprint mismatch")
+            for split in (self.train_data, self.val_data):
+                if int(split.tokens.max()) >= config.model.vocab_size:
+                    raise ValueError("Token ID outside vocabulary")
         self.model = Codexa(config.model).to(self.device)
         self.optimizer = make_optimizer(self.model, c)
         self.scheduler = make_scheduler(self.optimizer, c)
-        self.sampler = Sampler(self.train_data.size, c.seed)
+        from codexa.data.production import PermutationSampler
+
+        self.sampler = (PermutationSampler if production else Sampler)(self.train_data.size, c.seed)
         supported = self.device.type == "cuda" and torch.cuda.is_bf16_supported()
         self.bf16 = supported and c.precision != "fp32"
         self.step, self.tokens, self.stop = 0, 0, False
@@ -88,6 +108,7 @@ class Trainer:
         self.callbacks = callbacks
         self.microsteps = 0
         self.events: EventBus | None = None
+        self.dataset_name = manifest.get("dataset_name", Path(data).name)
         self.model.gradient_checkpointing = c.gradient_checkpointing
         self.best_validation_loss: float | None = None
 
@@ -151,7 +172,7 @@ class Trainer:
         self.optimizer.load_state_dict(state["optimizer"])
         self.scheduler.load_state_dict(state["scheduler"])
         if "context_transition" in state and "sampler" not in state:
-            self.sampler = Sampler(self.train_data.size, self.config.training.seed)
+            self.sampler = type(self.sampler)(self.train_data.size, self.config.training.seed)
         else:
             self.sampler.load_state_dict(state["sampler"])
         self.step, self.tokens = state["step"], state["tokens"]
@@ -227,6 +248,7 @@ class Trainer:
                 "optimizer": "AdamW · warmup/cosine",
                 "fingerprints": self.fingerprints,
                 "context_target": 32768,
+                "dataset": self.dataset_name,
             },
             self.callbacks + ((terminal,) if terminal else ()),
         )
@@ -262,8 +284,11 @@ class Trainer:
                     torch.cuda.reset_peak_memory_stats()
                 self.optimizer.zero_grad(set_to_none=True)
                 loss_value = 0.0
+                loading_seconds = 0.0
                 for _ in range(c.accumulation):
+                    load_start = time.perf_counter()
                     x, y = self.train_data.batch(self.sampler.next(c.batch_size), self.device)
+                    loading_seconds += time.perf_counter() - load_start
                     with self.amp():
                         loss = causal_loss(self.model(x), y) / c.accumulation
                     if not torch.isfinite(loss):
@@ -305,6 +330,11 @@ class Trainer:
                     accumulation=c.accumulation,
                     effective_batch=c.batch_size * c.accumulation,
                     microstep=self.microsteps,
+                    data_loading_seconds=loading_seconds,
+                    data_loading_tokens_per_second=tokens / loading_seconds
+                    if loading_seconds
+                    else None,
+                    dataset=self.dataset_name,
                     cuda_allocated_bytes=torch.cuda.memory_allocated()
                     if self.device.type == "cuda"
                     else None,

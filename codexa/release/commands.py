@@ -51,11 +51,12 @@ def dispatch(args: argparse.Namespace) -> None:
     if args.command == "evaluate":
         from codexa.evaluation.language_model import evaluate
 
-        print(json.dumps(evaluate(model, args.data, args.max_batches), indent=2))
+        print(json.dumps(evaluate(model, args.data, args.max_batches, args.split), indent=2))
     else:
         from pathlib import Path
 
         metadata = json.loads(Path(args.metadata).read_text())
         if metadata.get("training_tokens") != state["tokens"]:
             raise ValueError("Training token claim differs from checkpoint")
+        metadata.setdefault("data_fingerprints", state.get("fingerprints", {}))
         print(export_model(model, tokenizer, metadata, args.output))

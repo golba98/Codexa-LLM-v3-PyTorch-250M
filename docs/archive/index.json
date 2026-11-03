@@ -1,0 +1,70 @@
+[
+  {
+    "path": "docs/EVALUATION.md",
+    "sha256": "b6d38234140ab2208da399dbbf3ca2727f4336993d3e1f6a74ce6efcfdf691f0"
+  },
+  {
+    "path": "docs/IMPLEMENTATION_REPORT.md",
+    "sha256": "237339e7794f90b5cfad60364d95d0b6af05e65542f3dab32fa51ac13c97b083"
+  },
+  {
+    "path": "docs/M25_CONTEXT_AND_TELEMETRY.md",
+    "sha256": "55a7d6583e7a672781af28fdf8de4d2ca278da41ebed9070ab8c1d336dff171b"
+  },
+  {
+    "path": "docs/RELEASE_PROCESS.md",
+    "sha256": "eb91c1b3cead1def9f890ff172894d63dc9d56101f7ed859fc2d3d3c5df35d23"
+  },
+  {
+    "path": "docs/REPRODUCIBILITY.md",
+    "sha256": "c248cbf98f44cbd90d7a41ae16ad32e544e647a887e4bd639f1ea1df14808741"
+  },
+  {
+    "path": "docs/TERMINAL_DASHBOARD.md",
+    "sha256": "8d8c04ad36c47433b961fd2e0847e6aa0ce9fd8f9d5f94f5f036be467f1c689a"
+  },
+  {
+    "path": "docs/TRAINING_ROADMAP.md",
+    "sha256": "4a2e4747186be422b7cc9ba7a2333127943a57fdc40ac62e635a32ff1e9858ef"
+  },
+  {
+    "path": "docs/engineering/DEPENDENCY_LICENSES.json",
+    "sha256": "427e955cff840a6c837745eb2dd00b7b219d753d244f5bd7d9cf9b383caf5ece"
+  },
+  {
+    "path": "docs/engineering/M25_REFERENCE_AUDIT.md",
+    "sha256": "69d18d051410ccb00ffe1669a0609c1de604d49cab1b9de4376968c06ccf20cb"
+  },
+  {
+    "path": "docs/engineering/M25_REPORT.md",
+    "sha256": "8c16e4d7d21d2369d18a6389f3fa213894ead60e8363debea2cf23eb6a8bf467"
+  },
+  {
+    "path": "docs/engineering/MIGRATION_MAP.md",
+    "sha256": "b658fdba3ccd94104298d154685e0fc54693b3bb9b7417c0148ecc2d27f681c5"
+  },
+  {
+    "path": "docs/engineering/OVERHAUL_REPORT.md",
+    "sha256": "973c23867c5365f1f7f09340e04f018d7577a902e249ecc355d44af5cf79ed3d"
+  },
+  {
+    "path": "docs/engineering/REPOSITORY_AUDIT.md",
+    "sha256": "b67c7e62a94aaa8f6c95b74b23e183d61fe71e7c33150837cbf62c3608ee1ab0"
+  },
+  {
+    "path": "docs/engineering/REPOSITORY_OVERHAUL_PLAN.md",
+    "sha256": "a077dcf1ab11bce2da6376856d3420c1122b82771275e894e77806f55a83902a"
+  },
+  {
+    "path": "docs/engineering/TERMINAL_DASHBOARD_REPORT.md",
+    "sha256": "2f4452d6be6d4d26c20bfd2a5985250591f316cfc52ba4f1f8098b15b0bd8d28"
+  },
+  {
+    "path": "docs/engineering/migration-hashes.json",
+    "sha256": "63a8a36b94dd28ee77185d97140e88376ae61d25590fc10de6a6340d69286b09"
+  },
+  {
+    "path": "docs/engineering/terminal-acceptance.json",
+    "sha256": "36a673d70e81d0b2f9a37d8db93d9cef66480ad789fc6eb8275bcd68b25ffc71"
+  }
+]

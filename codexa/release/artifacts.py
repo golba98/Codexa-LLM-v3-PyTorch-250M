@@ -90,7 +90,7 @@ def export_model(
             "Limitations, bias and safety": "No demonstrated general competence. Synthetic fixtures are serialization tests only. Outputs may be incorrect or harmful.",
             "Inference requirements": f"Codexa custom loader and PyTorch; FP32 weights approximately {model.parameter_count() * 4} bytes plus runtime memory. No Transformers or other runtime compatibility is claimed.",
             "Weight licensing": metadata.get("weight_license", "UNREVIEWED"),
-            "Links": "https://github.com/golba98/Codexa-LLM-v3-PyTorch-250M — docs/RELEASE_PROCESS.md",
+            "Links": "https://github.com/golba98/Codexa-LLM-v3-PyTorch-250M — docs/RELEASE.md",
         }
         (tmp / "README.md").write_text(
             "# Codexa local model artifact\n\n"

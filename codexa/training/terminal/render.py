@@ -126,7 +126,9 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         ("Effective batch", number(batch, 0)),
         ("Accumulation", number(cfg.get("accumulation"), 0)),
         ("Sequence / context", f"{number(sequence, 0)} / {number(model.get('context'), 0)}"),
-        ("Epoch", "N/A · shuffled packed windows"),
+        ("Dataset", meta.get("dataset", "—")),
+        ("Data loading", number(m.get("data_loading_seconds"), 4, "s")),
+        ("Load rate", number(m.get("data_loading_tokens_per_second"), 0, " tok/s")),
     ]
     gpu, host = m.get("gpu_system") or {}, m.get("host_system") or {}
 
