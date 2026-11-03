@@ -47,6 +47,8 @@ def prepare(corpus: str, tokenizer_path: str, output: str) -> None:
     train, val = split_documents(read_documents(corpus))
     tok = CodexaTokenizer.load(tokenizer_path)
     target = Path(output)
+    if target.exists() and any(target.iterdir()):
+        raise FileExistsError(target)
     target.mkdir(parents=True, exist_ok=True)
     meta: dict[str, Any] = {"tokenizer_hash": fingerprint(tokenizer_path), "splits": {}}
     for name, docs in (("train", train), ("val", val)):

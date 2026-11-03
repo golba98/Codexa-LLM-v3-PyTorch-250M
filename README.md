@@ -1,84 +1,69 @@
-# Codexa-LLM-v3-PyTorch-250M
+# Codexa v3
 
-Codexa v3 is a decoder-only language model implemented locally in PyTorch and initialized from random weights. V1 explored PyTorch; v2 explored NumPy/CuPy; v3 establishes a new, tested PyTorch training foundation targeting 248.69M parameters. There are no pretrained weights, pretrained tokenizers, imported Transformer architectures, inference services, or distillation.
+A custom PyTorch decoder-only language model research project, trained from random initialization. The primary architecture has **248,687,488 parameters**: 24 layers, width 896, 14 heads, SwiGLU, RMSNorm, RoPE and tied embeddings. Configurations support 2K–32K context; architectural support does not establish trained long-context capability.
 
-This repository provides a training system, not a pretrained language model. The original sample corpus and tiny memorization test establish engineering behavior, not language competence.
+**No pretrained public model is available.** CPU/CUDA smoke training, exact CPU recovery, inference, Rich terminal monitoring, a separate local browser dashboard and SafeTensors exports are implemented. Production corpus approval and sustained pretraining remain future work.
+
+V1 explored PyTorch; v2 explored NumPy/CuPy. V3 is a separate implementation.
 
 ## Install
 
-Python 3.11+ is required; Python 3.13 is the tested environment. Using `uv`:
+Python 3.11–3.13; Linux is verified. Use the CPU lock for development or the CUDA lock for the recorded RTX 4080 environment:
 
 ```sh
 uv venv --python 3.13 .venv
+uv pip sync requirements-cpu-lock.txt
+uv pip install --no-deps -e .
 source .venv/bin/activate
-uv pip install -e '.[dev]'
 ```
 
-For an exact reproduction of the tested environment, use `uv pip sync requirements-lock.txt`, then `uv pip install --no-deps -e .`. The lock records the Linux NVIDIA environment and is not portable to all platforms. For CPU-only installations, install a compatible PyTorch CPU wheel from https://download.pytorch.org/whl/cpu before installing this package. No local CUDA toolkit is required for packaged CUDA runtimes; an appropriate NVIDIA driver is required.
+Optional Parquet ingestion requires `uv pip install -e '.[data]'`. Existing dependency pins are retained. CUDA wheels include their runtime; install an appropriate NVIDIA driver separately.
 
-## Tokenizer and smoke training
+## Quick start
 
-All commands run from the repository root. `--threads` is a global CLI option (default 4).
+The original small corpus is an engineering fixture, not a generalization benchmark:
 
 ```sh
-codexa tokenizer train --corpus examples/corpus --vocab-size 512 --output artifacts/tokenizer.json
-codexa data prepare --corpus examples/corpus --tokenizer artifacts/tokenizer.json --output artifacts/data
-codexa train --config configs/smoke.yaml --data artifacts/data --tokenizer artifacts/tokenizer.json --output runs/smoke --device cpu
-codexa train --config configs/smoke.yaml --data artifacts/data --tokenizer artifacts/tokenizer.json --output runs/smoke --device cpu --resume runs/smoke/latest.pt
-codexa generate --checkpoint runs/smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --temperature 0.8 --top-k 30 --top-p 0.9 --seed 42
-codexa generate --checkpoint runs/smoke/latest.pt --prompt 'Morning light' --max-tokens 40 --greedy
+codexa tokenizer train --corpus examples/corpus --vocab-size 512 --output outputs/tokenizers/demo/tokenizer.json
+codexa data prepare --corpus examples/corpus --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/datasets/demo
+codexa train --config configs/smoke.yaml --data outputs/datasets/demo --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/experiments/demo --device cpu --until 50 --ui terminal
+codexa train --config configs/smoke.yaml --data outputs/datasets/demo --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/experiments/demo --device cpu --resume outputs/experiments/demo/latest.pt
+codexa generate --checkpoint outputs/experiments/demo/latest.pt --prompt 'Morning light' --max-tokens 16 --greedy
 ```
 
-To demonstrate an interrupted run, add `--until 50` to the first training command, then resume without that option. A finished checkpoint resumes as a no-op. Schedule and configuration must remain identical. SIGINT/SIGTERM request a safe stop after the current optimizer step; the resulting checkpoint records that completed step. An exception during an optimizer step leaves the previous checkpoint intact.
+Training selects the full Rich TUI automatically on a capable TTY. `--ui none` is headless; Ctrl+C safely checkpoints after the current update. `codexa dashboard` starts the independent browser viewer. No port is required for terminal monitoring.
 
-The data importer accepts a directory of UTF-8 `.txt` documents or JSONL records with a `text` string. It deduplicates identical document hashes, selects a deterministic 10% validation split (at least one document), and trains BPE exclusively on the remaining documents. Adding corpus documents can change the split; freeze the corpus before a research run. Content-level deduplication does not detect paraphrases or contamination.
+![Terminal training](docs/images/terminal-training-full.png)
 
-Tokenizer training has no destructive normalization and includes all byte symbols. Special strings `<pad>`, `<unk>`, `<bos>`, `<eos>` are reserved; literal appearances are interpreted as special tokens. Ordinary Unicode text, whitespace, and mathematical symbols round-trip. Arbitrary generated bytes may decode with replacement characters. Insufficient text diversity for the requested vocabulary produces an error. The smoke corpus cannot support production tokenizer research.
+## Production data workflow
 
-Packed streams use BOS/document/EOS, little-endian uint32 tokens, and ordinary causal attention across document boundaries. Full sequences share the lookahead token at their boundaries. Remaining tails are unused; unused count is `(token_count - 1) % sequence_length`. No padding is used during training. Dataset and tokenizer hashes are checked at startup and resume. Preparation streams output one document at a time, but corpus ingestion currently retains text in RAM: large-corpus preparation is a future milestone.
-
-## Configurations and training
-
-YAML configurations contain `model` and `training` sections. Unknown fields fail construction; invalid dimensions and schedules raise errors. All sizes use the same architecture.
-
-| Config | Parameters | Layers / width / heads / FFN | Vocabulary | Context |
-|---|---:|---|---:|---:|
-| smoke | 133,440 | 2 / 64 / 4 / 176 | 512 | 64 |
-| 50m | 49,295,872 | 12 / 512 / 8 / 1536 | 16,384 | 1024 |
-| 250m | 248,687,488 | 24 / 896 / 14 / 2432 | 16,384 | 2048 |
-
-For larger models first prepare a permitted, sufficiently diverse local corpus and train a **new** 16,384-token BPE. Point training at that tokenizer and corresponding packed data. The primary configuration encodes roughly five billion target tokens, **not an authorized automatic training run**. Benchmark and review the budget before launching it. No large dataset is included or downloaded.
-
-Training uses AdamW, warmup/cosine scheduling, accumulation, gradient clipping, and CUDA BF16 autocast when available. Parameters, gradients, and Adam moments remain FP32; CPU and unsupported devices use FP32. `precision: fp32` disables autocast. A `bf16` request also safely falls back if unsupported. There is no FP16 path or loss scaler. Effective batch sequences = batch size × accumulation; target tokens per update additionally multiply sequence length. Metrics are appended to the run's JSONL file.
-
-Checkpoints include optimizer/scheduler, consumed tokens, sampler order/cursor, all RNG states, configuration, and the tokenizer JSON. Atomic same-directory replacement protects the previous checkpoint from interrupted writes. Exact resume requires the same configuration, data, device type, and precision. Bitwise CPU resumption is tested; GPU kernels, library versions, and hardware can affect numerical reproducibility. Checkpoints from this project use PyTorch's restricted `weights_only` loader.
-
-## Tests and benchmarks
+Use a reviewed source manifest, or explicitly fetch the small pinned WikiText-2 verification sample (under 100 MiB), then curate and prepare immutable uint16 shards:
 
 ```sh
-pytest -q
-ruff check .
-ruff format --check .
-mypy codexa
+codexa data sample --output outputs/datasets/wikitext-sample
+codexa data curate --config outputs/datasets/wikitext-sample/config.yaml --output outputs/datasets/curated
+codexa tokenizer train --dataset outputs/datasets/curated --vocab-size 16384 --output outputs/tokenizers/candidate.json
+codexa tokenizer evaluate --dataset outputs/datasets/curated --tokenizer outputs/tokenizers/candidate.json
+codexa tokenizer freeze --tokenizer outputs/tokenizers/candidate.json --output outputs/tokenizers/frozen
+codexa data prepare --dataset outputs/datasets/curated --tokenizer outputs/tokenizers/frozen/tokenizer.json --output outputs/datasets/prepared
+codexa data verify --data outputs/datasets/prepared
+```
+
+Edit source paths/provenance before using the production example. See [datasets](docs/DATASETS.md) for limits, contamination controls and candidate status. A candidate tokenizer is not an approved production freeze. Never launch the 100M-token pilot or 5B-token run without explicit authorization.
+
+## Development and documentation
+
+```sh
+python scripts/verify.py
+sh scripts/smoke.sh
 codexa benchmark --config configs/smoke.yaml --device cpu --sequence 64
-codexa benchmark --config configs/50m.yaml --device cuda --sequence 1024
-codexa benchmark --config configs/250m.yaml --device cuda --sequence 2048 --steps 3 --warmup 1 --output artifacts/250m-benchmark.json
 ```
 
-Benchmarks use synthetic token IDs and execute real forward/backward/AdamW steps with micro-batch one; use `--accumulation 16` to measure the primary effective batch. CUDA timing synchronizes the device and reports peak allocated memory. Estimates exclude activations unless explicitly measured. OOM is reported without substituting a smaller architecture. Throughput extrapolation from a short run is not a training completion prediction.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Training, monitoring and recovery](docs/TRAINING.md)
+- [Datasets and tokenizer](docs/DATASETS.md)
+- [Research roadmap](docs/ROADMAP.md)
+- [Release process](docs/RELEASE.md)
+- [Measured benchmarks](docs/benchmarks/README.md)
 
-At 248,687,488 parameters, FP32 weights occupy 948.67 MiB; gradients another 948.67 MiB; Adam moments about 1,897.33 MiB. This 3.71 GiB subtotal excludes activations, logits, optimizer intermediates, allocator reservation, and CUDA context. BF16 autocast does not halve these FP32 states. Availability of 16GB VRAM alone does not establish that a desired batch fits.
-
-## Mathematics
-
-```sh
-codexa math generate --split train --count 20 --output artifacts/arithmetic-train.jsonl
-codexa math generate --split test --count 20 --output artifacts/arithmetic-test.jsonl
-codexa math evaluate --problems artifacts/arithmetic-test.jsonl --predictions artifacts/predictions.json
-```
-
-Predictions are a JSON object mapping stable problem IDs to integer answer strings. Missing or malformed answers count as incorrect. Accuracy is grouped by grade and topic. Reevaluate frozen earlier topic sets after each curriculum stage to detect forgetting.
-
-The implemented prototype generates Grade 1 addition/subtraction within 20, exact verified answers, explanatory steps, difficulty, and stable split identities. Different random seeds change ordering, not split membership; addition operands are canonicalized to avoid reversed-pair leakage. It is a synthetic engineering demonstration, not verified educational content. See [the roadmap](docs/TRAINING_ROADMAP.md) for Grades 1–12. Mathematics training remains deferred.
-
-See [architecture](docs/ARCHITECTURE.md) and [implementation measurements](docs/IMPLEMENTATION_REPORT.md).
+Source code is Apache-2.0; original fixtures are CC0. External datasets and model weights require separate licensing review. See [contributing](CONTRIBUTING.md), [security](SECURITY.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Historical engineering records are preserved in the [archive index](docs/archive/index.json). No weights or large data belong in Git.

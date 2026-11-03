@@ -108,7 +108,8 @@ def test_generation():
     assert generate(m, [2], 10, top_k=8, top_p=0.9) == generate(m, [2], 10, top_k=8, top_p=0.9)
     first = generate(m, [2], 1, greedy=True)[-1]
     assert len(generate(m, [2], 20, greedy=True, eos=first)) == 2
-    assert len(generate(m, list(range(70)), 3, eos=-1)) == 73
+    with pytest.raises(ValueError):
+        generate(m, list(range(70)), 3, eos=-1)
     s = filter_logits(torch.tensor([4.0, 3.0, 2.0, 1.0]), top_k=2)
     assert torch.isfinite(s).sum() == 2
     assert torch.isfinite(filter_logits(torch.tensor([20.0, 0.0, -1.0]), top_p=0.5)).sum() == 1

@@ -1,0 +1,17 @@
+name: Optional GPU validation
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  gpu:
+    if: github.actor == github.repository_owner
+    runs-on: [self-hosted, linux, cuda]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: uv venv --python 3.13 .venv
+      - run: uv pip sync requirements-lock.txt
+      - run: uv pip install --no-deps -e .
+      - run: .venv/bin/python scripts/verify.py
+      - run: PATH="$PWD/.venv/bin:$PATH" CODEXA_DEVICE=cuda sh scripts/smoke.sh

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Codexa · Research console</title>
+        <link rel="stylesheet" href="/uplot.css" />
+        <link rel="stylesheet" href="/style.css" />
+        <script defer src="/uplot.js"></script>
+        <script defer src="/app.js"></script>
+    </head>
+    <body>
+        <aside>
+            <div class="brand">
+                ◈ CODEXA <small>RESEARCH CONSOLE / V3</small>
+            </div>
+            <label
+                >EXPERIMENTS<select id="runs" aria-label="Select run"></select
+            ></label>
+            <p id="connection">Connecting…</p>
+            <h3>COMPARE RUN</h3>
+            <select id="compare" aria-label="Compare run">
+                <option value="">None</option>
+            </select>
+            <p class="muted">
+                Read-only monitoring.<br />Training runs independently.
+            </p>
+            <div class="foot">
+                M2.5 / FROM RANDOM WEIGHTS<br />No pretrained model released
+            </div>
+        </aside>
+        <main>
+            <header>
+                <div>
+                    <span class="eyebrow">TRAINING OBSERVATORY</span>
+                    <h1 id="name">Your research, in view.</h1>
+                    <p id="subtitle">
+                        Select an experiment to inspect live or archived
+                        telemetry.
+                    </p>
+                </div>
+                <span id="status" class="badge">NO RUN SELECTED</span>
+            </header>
+            <div id="cards" class="cards"></div>
+            <section class="workspace">
+                <div>
+                    <div class="panel">
+                        <div class="panelhead">
+                            <h2>Learning dynamics</h2>
+                            <span>RAW LOSS / OPTIMIZER STEPS</span>
+                        </div>
+                        <div id="loss" class="plot"></div>
+                    </div>
+                    <div class="grid">
+                        <div class="panel">
+                            <h2>Throughput · tokens/s</h2>
+                            <div id="speed" class="plot small"></div>
+                        </div>
+                        <div class="panel">
+                            <h2>Learning rate</h2>
+                            <div id="lr" class="plot small"></div>
+                        </div>
+                        <div class="panel">
+                            <h2>GPU memory · GiB</h2>
+                            <div id="memory" class="plot small"></div>
+                        </div>
+                        <div class="panel">
+                            <h2>Gradient norm</h2>
+                            <div id="gradient" class="plot small"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="panel">
+                        <h2>Compute</h2>
+                        <div id="gpu">Unavailable until recorded.</div>
+                    </div>
+                    <div class="panel">
+                        <h2>Checkpoint ledger</h2>
+                        <div id="checkpoints">No checkpoint events.</div>
+                    </div>
+                    <div class="panel">
+                        <h2>Primary context evidence</h2>
+                        <div id="contexts"></div>
+                        <p class="muted">
+                            Configured ≠ executed ≠ trained ≠ evaluated. No
+                            base-training or capability evaluation recorded for
+                            these stages.
+                        </p>
+                    </div>
+                    <div class="panel">
+                        <h2>Mathematics curriculum</h2>
+                        <div id="math"></div>
+                        <p class="muted">No topic evaluation recorded.</p>
+                    </div>
+                </div>
+            </section>
+            <section class="panel">
+                <h2>Event timeline</h2>
+                <div id="events"></div>
+            </section>
+            <footer>
+                Local telemetry only · Drag a chart to zoom · Double click to
+                reset · Missing values remain unavailable
+            </footer>
+        </main>
+    </body>
+</html>

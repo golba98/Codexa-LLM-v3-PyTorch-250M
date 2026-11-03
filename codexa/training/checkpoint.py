@@ -9,7 +9,8 @@ import torch
 
 
 def rng_state() -> dict[str, Any]:
-    n = np.random.get_state()
+    n = np.random.get_state(legacy=True)
+    assert isinstance(n, tuple), "Native checkpoints require the legacy NumPy RNG tuple"
     return {
         "python": random.getstate(),
         "numpy": (n[0], n[1].tolist(), n[2], n[3], n[4]),

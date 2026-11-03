@@ -1,0 +1,14 @@
+# Replace with permitted local JSONL sources. Every source needs provenance.
+seed: 42
+fractions: [0.99, 0.005, 0.005]
+max_document_bytes: 1048576
+min_chars: 32
+near_duplicates: true
+near_threshold: 0.85
+sources:
+  - name: reviewed-local-corpus
+    paths: [data/local/corpus.jsonl]
+    format: jsonl
+    snapshot: replace-with-snapshot-id
+    license: replace-with-reviewed-license
+    attribution: replace-with-required-attribution

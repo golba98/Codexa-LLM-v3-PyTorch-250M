@@ -25,6 +25,8 @@ class Block(nn.Module):
         self.attention = CausalAttention(c)
         self.ff = SwiGLU(c.dim, c.intermediate)
 
-    def forward(self, x: Tensor) -> Tensor:
-        x = x + self.attention(self.attn_norm(x))
+    def forward(
+        self, x: Tensor, cache: tuple[Tensor, Tensor] | None = None, offset: int = 0
+    ) -> Tensor:
+        x = x + self.attention(self.attn_norm(x), cache, offset)
         return x + self.ff(self.ff_norm(x))

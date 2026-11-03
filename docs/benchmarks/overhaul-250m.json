@@ -1,0 +1,31 @@
+{
+  "measured": true,
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 4080",
+  "torch": "2.11.0+cu130",
+  "precision": "bf16_autocast",
+  "parameters": 248687488,
+  "weight_bytes": 994749952,
+  "gradient_bytes_estimate": 994749952,
+  "adam_moments_bytes_estimate": 1989499904,
+  "peak_cuda_allocated_bytes": 6566576128,
+  "sequence": 2048,
+  "micro_batch": 1,
+  "accumulation": 1,
+  "effective_global_batch_sequences": 1,
+  "tokens_per_step": 2048,
+  "warmup_steps": 1,
+  "measured_steps": 3,
+  "step_seconds": 0.09845683900008832,
+  "tokens_per_second": 20800.99280861701,
+  "five_billion_tokens_seconds_extrapolated": 240373.14209005938,
+  "five_billion_tokens_flops_estimate": 7460624640000000000,
+  "provenance": {
+    "baseline_commit": "b8588ed",
+    "phase": "local overhaul working tree; exact executed tree digest not captured; code associated with overhaul commit",
+    "python": "3.13.14",
+    "threads": 4,
+    "method": "one warmup, three synthetic-token forward/backward/AdamW steps; micro-batch one",
+    "driver": "615.78.08"
+  }
+}

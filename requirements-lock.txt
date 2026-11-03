@@ -54,3 +54,17 @@ triton==3.6.0
 truststore==0.10.5
 types-PyYAML==6.0.12.20261030
 typing_extensions==4.16.0
+
+safetensors==0.8.0
+build==1.6.1
+pyproject-hooks==1.3.3
+
+# Optional terminal UI and PTY verification; existing dependency pins retained.
+markdown-it-py==4.2.0
+mdurl==0.1.2
+rich==14.2.0
+pyte==0.8.2
+wcwidth==0.9.4
+
+# Optional Parquet ingestion, verified with M3
+pyarrow==23.0.1
