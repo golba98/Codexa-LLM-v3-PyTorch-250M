@@ -232,13 +232,15 @@ def test_host_probe_and_missing_gpu(tmp_path):
 
 
 @pytest.mark.parametrize("size,mode", [(("120", "36"), "auto"), (("60", "24"), "terminal")])
-def test_cli_pty_acceptance(prepared, tmp_path, size, mode):
+def test_cli_pty_acceptance(prepared, tmp_path, size, mode, monkeypatch):
     import subprocess
     import sys
 
     pytest.importorskip("rich")
     pytest.importorskip("pyte")
     data, tok, _ = prepared
+    monkeypatch.setenv("COLUMNS", "80")
+    monkeypatch.setenv("LINES", "24")
     output = tmp_path / "pty"
     result = subprocess.run(
         [
@@ -349,6 +351,8 @@ def test_worker_preserves_queued_startup(monkeypatch):
     state.update(event("paused", 80))
     parent.send(json.dumps({"snapshot": state.snapshot(), "close": True}).encode())
     monkeypatch.setenv("TERM", "xterm-256color")
+    monkeypatch.setenv("COLUMNS", "80")
+    monkeypatch.setenv("LINES", "24")
     process = subprocess.Popen(
         [
             sys.executable,

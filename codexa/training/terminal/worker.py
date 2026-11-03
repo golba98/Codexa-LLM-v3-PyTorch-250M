@@ -40,6 +40,18 @@ def main() -> None:
             vertical_overflow="crop",
         ) as live,
     ):
+
+        def refresh(view):
+            try:
+                # Shell/CI COLUMNS and LINES may describe a different terminal.
+                # Query our output PTY directly on every refresh for resize support.
+                dimensions = os.get_terminal_size(sys.stdout.fileno())
+                if dimensions.columns > 0 and dimensions.lines > 0:
+                    console.size = dimensions
+            except (OSError, ValueError):
+                pass
+            live.update(frame(view, console.width, console.height), refresh=True)
+
         while not stopping and os.getppid() == parent:
             select.select([channel], [], [], 0.25)
             for _ in range(64):
@@ -54,12 +66,12 @@ def main() -> None:
                 if first:
                     # Startup is a real lifecycle state; don't coalesce it away
                     # when a very short run finishes before this child starts.
-                    live.update(frame(snapshot, console.width, console.height), refresh=True)
+                    refresh(snapshot)
             if snapshot is not None:
                 view = snapshot.copy()
                 if view["status"] not in ("completed", "paused", "interrupted", "failed"):
                     view["elapsed"] += time.monotonic() - received
-                live.update(frame(view, console.width, console.height), refresh=True)
+                refresh(view)
     if snapshot is not None:
         # A single durable terminal summary after leaving the alternate screen.
         console.print(

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+Terminal rendering reads the actual output PTY dimensions on every refresh, including when inherited COLUMNS/LINES describe another terminal. Regression tests exercise conflicting environment sizes.
+
 CI: preserve real terminal startup frames and capture completed VT frames independently of PTY read chunking; expose child-process failure diagnostics. Keep all Python matrix jobs running to completion without duplicate feature-branch push runs. NumPy RNG checkpoints explicitly retain their legacy tuple contract.
 
 
