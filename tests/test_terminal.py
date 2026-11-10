@@ -276,6 +276,8 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode, monkeypatch):
 
 def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
     import pty
+    import select
+    import threading
 
     from codexa.training import terminal
 
@@ -284,6 +286,18 @@ def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
     master, slave = pty.openpty()
     stream = os.fdopen(os.dup(slave), "w")
     view = TerminalDashboard(stream)
+    captured = bytearray()
+    stop = threading.Event()
+
+    def drain():
+        # Model a live terminal peer: a full frame may exceed the PTY buffer.
+        while not stop.is_set():
+            ready, _, _ = select.select([master], [], [], 0.05)
+            if ready:
+                captured.extend(os.read(master, 65536))
+
+    reader = threading.Thread(target=drain)
+    reader.start()
 
     class Kill:
         def on_event(self, e):
@@ -303,8 +317,14 @@ def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
         t.train(until=4, ui="terminal", handle_signals=False)
         assert t.step == 4 and not view.active and (Path(out) / "latest.pt").is_file()
         assert '"event": "warning"' in (Path(out) / "events.jsonl").read_text()
-        assert b"\x1b[?25h\x1b[?1049l" in os.read(master, 4096)
+        restored = b"\x1b[?25h\x1b[?1049l"
+        deadline = time.monotonic() + 3
+        while restored not in captured and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert restored in captured
     finally:
+        stop.set()
+        reader.join(timeout=3)
         stream.close()
         os.close(master)
         os.close(slave)
