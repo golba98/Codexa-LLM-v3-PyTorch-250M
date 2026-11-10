@@ -99,6 +99,13 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         Text(f"  ETA ≈ {duration(s['eta'])}"),
     )
     header.add_row(Text("Tokens " + tokens, style=DIM), Text("Session " + duration(s["elapsed"])))
+    if meta.get("parent_tokens"):
+        header.add_row(
+            Text(
+                "Continuation tokens " + number(s["tokens"] - meta["parent_tokens"], 0), style=DIM
+            ),
+            Text("Lifetime step " + number(meta.get("parent_updates", 0) + step, 0)),
+        )
     top = Panel(header, border_style=BORDER, box=box.ROUNDED, padding=(0, 1))
     mean, loss = number(s["smoothed_loss"]), number(m.get("loss"))
     lr = f"{m['lr']:.2e}" if m.get("lr") is not None else "—"
@@ -241,7 +248,7 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         middle = Layout()
         middle.split_row(left, right)
         root.split_column(
-            Layout(top, size=6),
+            Layout(top, size=7 if meta.get("parent_tokens") else 6),
             middle,
             Layout(event_panel, size=5 if full else 4),
             Layout(footer, size=1),

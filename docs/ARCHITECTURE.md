@@ -1,5 +1,10 @@
 # Architecture
 
+## Language-first continuation
+
+The immediate objective is coherent English, followed by conversational post-training. The 248,687,488-parameter architecture, context length, special IDs, initialization and frozen 16,384-token tokenizer remain unchanged. Continue existing weights; do not reinitialize them. Mathematics specialization remains a later phase, and ordinary mathematical expressions remain eligible in useful prose.
+
+
 Codexa implements its own decoder-only Transformer. Inputs `[B,T]` become token embeddings `[B,T,D]`; no learned positional embeddings or linear biases are used.
 
 For each block:
@@ -38,3 +43,7 @@ Primary dimensions are L=24, D=896, H=14, head dimension=64, F=2432, V=16384, co
 For packed tokens `s[0:T+1]`, inputs are `s[0:T]` and targets `s[1:T+1]`. The loss is mean negative log likelihood over every target position; no second shift occurs inside the loss. Packing deliberately permits context across EOS/BOS boundaries. Accumulated equal-sized micro-batch losses divide by accumulation count before backward.
 
 Inference repeatedly evaluates the current context, then selects the final-position logits. Temperature precedes top-k and nucleus filtering. Nucleus filtering retains the token crossing the probability threshold. Greedy decoding uses argmax. EOS ends generation. M2.5 replaces sliding truncation with explicit budget enforcement and adds per-request KV caching, absolute positions, opt-in linear scaling and block activation checkpointing. See TRAINING.md.
+
+## Dataset-v2 compatibility
+
+Dataset-v2 preparation keeps the existing 248,687,488-parameter architecture, 16,384-token vocabulary, special IDs, 2,048-token context and next-token objective unchanged. Its continuation tooling validates exact model/tokenizer identity; it does not introduce context extension or pretrained components. See [training readiness](CODEXA_V3_TRAINING_READINESS.md) for measured baseline evidence and the forward-only verification scope.

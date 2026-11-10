@@ -1,0 +1,16 @@
+version: codexa-language-data-3
+sources:
+- adapter: codexa-dclm-english-1
+  bytes: 861553929
+  category: general
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+  license: Dataset CC-BY-4.0 declaration; original text rights require reviewed evidence
+  min_edu_score: 4
+  name: dclm-edu
+  path: data/176_00008.parquet
+  repo: HuggingFaceTB/dclm-edu
+  revision: dbad8ad71224482740cd9c9d353591adbf62fe04
+  sha256: 05e18c3036a388f5d8a44057153541ed745319c330b1b46781da86f0e4c33b15
+  target_share: 1.0

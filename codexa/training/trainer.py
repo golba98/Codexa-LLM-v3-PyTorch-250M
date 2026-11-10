@@ -17,7 +17,7 @@ from codexa.data.packing import PackedData, Sampler, fingerprint
 from codexa.tokenizer.bpe import CodexaTokenizer
 
 from .callbacks.telemetry import Callback, EventBus
-from .checkpoint import load, restore_rng, rng_state, save_atomic
+from .checkpoint import check_volume, load, restore_rng, rng_state, save_atomic
 from .optimizer import make_optimizer
 from .scheduler import make_scheduler
 
@@ -52,8 +52,12 @@ class Trainer:
         output: str,
         device: str = "auto",
         callbacks: tuple[Callback, ...] = (),
+        checkpoint_volume_uuid: str | None = None,
+        stream_data: tuple[Any, Any] | None = None,
     ):
         self.config, self.output = config, Path(output)
+        self.checkpoint_volume_uuid = checkpoint_volume_uuid
+        check_volume(self.output, checkpoint_volume_uuid)
         self.output.mkdir(parents=True, exist_ok=True)
         self.device = choose_device(device)
         c = config.training
@@ -62,11 +66,42 @@ class Trainer:
         tok = CodexaTokenizer.load(tokenizer)
         if tok.backend.get_vocab_size() != config.model.vocab_size:
             raise ValueError("Tokenizer vocabulary differs from model")
-        manifest = json.loads((Path(data) / "manifest.json").read_text())
+        manifest = (
+            {"dataset_name": "unapproved-stream"}
+            if stream_data is not None
+            else json.loads((Path(data) / "manifest.json").read_text())
+        )
         self.train_data: Any
         self.val_data: Any
         production = manifest.get("version") == 2
-        if production:
+        self.streaming = stream_data is not None
+        if stream_data is not None:
+            self.train_data, self.val_data = stream_data
+            if self.train_data.split != "train" or self.val_data.split != "val":
+                raise ValueError("Streaming train and validation splits required")
+            import hashlib
+
+            tokenizer_identity = hashlib.sha256(tok.backend.to_str().encode()).hexdigest()
+            config_identity = hashlib.sha256(
+                json.dumps(config.to_dict(), sort_keys=True).encode()
+            ).hexdigest()
+            if any(
+                stream.tokenizer_identity != tokenizer_identity
+                or stream.sequence != c.sequence
+                or (
+                    stream.required_config_identity is not None
+                    and stream.required_config_identity != config_identity
+                )
+                for stream in stream_data
+            ):
+                raise ValueError("Streaming tokenizer or sequence differs from trainer")
+            self.fingerprints = {
+                "dataset": self.train_data.identity,
+                "validation": self.val_data.identity,
+                "tokenizer": fingerprint(tokenizer),
+            }
+            self.validation_stream_start = self.val_data.state_dict()
+        elif production:
             if manifest["vocab_size"] != config.model.vocab_size:
                 raise ValueError("Dataset vocabulary mismatch")
             from codexa.data.production import ShardedData, digest
@@ -100,7 +135,11 @@ class Trainer:
         self.scheduler = make_scheduler(self.optimizer, c)
         from codexa.data.production import PermutationSampler
 
-        self.sampler = (PermutationSampler if production else Sampler)(self.train_data.size, c.seed)
+        self.sampler = (
+            self.train_data
+            if self.streaming
+            else (PermutationSampler if production else Sampler)(self.train_data.size, c.seed)
+        )
         supported = self.device.type == "cuda" and torch.cuda.is_bf16_supported()
         self.bf16 = supported and c.precision != "fp32"
         self.step, self.tokens, self.stop = 0, 0, False
@@ -111,6 +150,7 @@ class Trainer:
         self.dataset_name = manifest.get("dataset_name", Path(data).name)
         self.model.gradient_checkpointing = c.gradient_checkpointing
         self.best_validation_loss: float | None = None
+        self.phase: dict[str, Any] | None = None
 
     def amp(self) -> torch.autocast:
         return torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.bf16)
@@ -127,6 +167,13 @@ class Trainer:
             )
 
     def checkpoint(self, name: str = "latest.pt") -> None:
+        check_volume(self.output, self.checkpoint_volume_uuid)
+        if self.phase:
+            from codexa.data.v2_storage import Storage
+
+            Storage(self.output, self.phase["volume_uuid"], self.phase["minimum_free_bytes"]).check(
+                3 * 1024**3
+            )
         started = time.perf_counter()
         self.emit("checkpoint_started", identifier=name)
         save_atomic(
@@ -146,7 +193,19 @@ class Trainer:
                 "tokenizer_json": self.tokenizer_json,
                 "device_type": self.device.type,
                 "bf16": self.bf16,
-            },
+            }
+            | (
+                {
+                    "phase": self.phase
+                    | {
+                        "phase_updates": self.step,
+                        "phase_tokens": self.tokens - self.phase["parent_tokens"],
+                        "cumulative_updates": self.phase["parent_updates"] + self.step,
+                    }
+                }
+                if self.phase
+                else {}
+            ),
             self.output / name,
         )
 
@@ -168,6 +227,13 @@ class Trainer:
             raise ValueError("Resume configuration or data mismatch")
         if state["device_type"] != self.device.type or state["bf16"] != self.bf16:
             raise ValueError("Exact training resume requires the same device type and precision")
+        if state.get("phase"):
+            from codexa.data.v2_storage import Storage
+
+            phase = state["phase"]
+            Storage(self.output, phase["volume_uuid"], phase["minimum_free_bytes"]).check(
+                3 * 1024**3
+            )
         self.model.load_state_dict(state["model"])
         self.optimizer.load_state_dict(state["optimizer"])
         self.scheduler.load_state_dict(state["scheduler"])
@@ -180,6 +246,21 @@ class Trainer:
             "microsteps", self.step * Config.from_dict(state["config"]).training.accumulation
         )
         self.transition = state.get("context_transition")
+        self.phase = state.get("phase")
+        if self.phase and "additional_target_tokens" in self.phase:
+            budget = self.phase["additional_target_tokens"]
+            c = self.config.training
+            update = c.batch_size * c.accumulation * c.sequence
+            if (
+                not isinstance(budget, int)
+                or budget <= 0
+                or (budget + update - 1) // update != c.steps
+                or self.tokens - self.phase["parent_tokens"] != min(self.step * update, budget)
+                or self.microsteps
+                != (min(self.step * update, budget) + c.batch_size * c.sequence - 1)
+                // (c.batch_size * c.sequence)
+            ):
+                raise ValueError("Exact phase-token accounting mismatch")
         self.resumed = True
         self.best_validation_loss = state.get("best_validation_loss")
         restore_rng(state["rng"])
@@ -187,15 +268,22 @@ class Trainer:
     @torch.no_grad()
     def validate(self) -> float:
         started = time.perf_counter()
-        batches = min(self.config.training.validation_batches, self.val_data.size)
+        batches = (
+            self.config.training.validation_batches
+            if self.streaming
+            else min(self.config.training.validation_batches, self.val_data.size)
+        )
         self.emit("validation_started", total_batches=batches)
         state, training = rng_state(), self.model.training
         self.model.eval()
         losses = []
         try:
+            if self.streaming:
+                self.val_data.load_state_dict(self.validation_stream_start)
             progress_at = started
             for i in range(batches):
-                x, y = self.val_data.batch([i], self.device)
+                indices = self.val_data.next(1) if self.streaming else [i]
+                x, y = self.val_data.batch(indices, self.device)
                 with self.amp():
                     losses.append(float(causal_loss(self.model(x), y)))
                 if time.perf_counter() - progress_at >= 0.25 or i + 1 == batches:
@@ -222,6 +310,19 @@ class Trainer:
     def train(
         self, until: int | None = None, handle_signals: bool = True, ui: str = "auto"
     ) -> list[dict[str, Any]]:
+        from codexa.safety import require_training_allowed
+
+        require_training_allowed()
+        if self.streaming:
+            if self.train_data.launch_check is None:
+                raise RuntimeError(
+                    "Streaming training is blocked pending source approval and gate integration"
+                )
+            self.train_data.launch_check()
+            if not self.phase or self.phase.get("additional_target_tokens") != 1_000_000_000:
+                raise RuntimeError(
+                    "Streaming requires an explicitly prepared 1B continuation phase"
+                )
         from .terminal import choose_terminal
 
         c = self.config.training
@@ -237,7 +338,10 @@ class Trainer:
                 "parameters": self.model.parameter_count(),
                 "model_name": "Codexa v3",
                 "torch_version": str(torch.__version__),
-                "target_tokens": self.tokens
+                "target_tokens": self.phase["parent_tokens"]
+                + self.phase["additional_target_tokens"]
+                if self.phase and "additional_target_tokens" in self.phase
+                else self.tokens
                 + max(0, c.steps - self.step) * c.batch_size * c.accumulation * c.sequence,
                 "architecture": "codexa-decoder-v1",
                 "device": str(self.device),
@@ -246,6 +350,8 @@ class Trainer:
                 if self.device.type == "cuda"
                 else None,
                 "optimizer": "AdamW · warmup/cosine",
+                "parent_tokens": self.phase["parent_tokens"] if self.phase else 0,
+                "parent_updates": self.phase["parent_updates"] if self.phase else 0,
                 "fingerprints": self.fingerprints,
                 "context_target": 32768,
                 "dataset": self.dataset_name,
@@ -285,18 +391,49 @@ class Trainer:
                 self.optimizer.zero_grad(set_to_none=True)
                 loss_value = 0.0
                 loading_seconds = 0.0
+                full_update = c.batch_size * c.sequence * c.accumulation
+                update_targets = full_update
+                if self.phase and "additional_target_tokens" in self.phase:
+                    update_targets = min(
+                        full_update,
+                        self.phase["parent_tokens"]
+                        + self.phase["additional_target_tokens"]
+                        - self.tokens,
+                    )
+                if update_targets <= 0:
+                    raise ValueError("Phase-token budget exhausted before configured final step")
+                used_targets = used_microsteps = unused_targets = 0
                 for _ in range(c.accumulation):
+                    if used_targets == update_targets:
+                        break
                     load_start = time.perf_counter()
                     x, y = self.train_data.batch(self.sampler.next(c.batch_size), self.device)
                     loading_seconds += time.perf_counter() - load_start
+                    valid_targets = min(y.numel(), update_targets - used_targets)
                     with self.amp():
-                        loss = causal_loss(self.model(x), y) / c.accumulation
+                        if update_targets == full_update:
+                            loss = causal_loss(self.model(x), y) / c.accumulation
+                        else:
+                            if c.batch_size == 1:
+                                x, y = x[:, :valid_targets], y[:, :valid_targets]
+                            logits = self.model(x)
+                            loss = (
+                                F.cross_entropy(
+                                    logits.float().flatten(0, 1)[:valid_targets],
+                                    y.flatten()[:valid_targets],
+                                    reduction="sum",
+                                )
+                                / update_targets
+                            )
                     if not torch.isfinite(loss):
                         raise FloatingPointError(
                             "Nonfinite loss; last completed checkpoint retained"
                         )
                     loss.backward()
                     self.microsteps += 1
+                    used_microsteps += 1
+                    used_targets += valid_targets
+                    unused_targets += c.batch_size * c.sequence - valid_targets
                     loss_value += float(loss.detach())
                 gradient_norm = torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), c.clip, error_if_nonfinite=True
@@ -305,8 +442,12 @@ class Trainer:
                 self.optimizer.step()
                 self.scheduler.step()
                 self.step += 1
-                tokens = c.batch_size * c.sequence * c.accumulation
+                tokens = used_targets
                 self.tokens += tokens
+                if self.phase and unused_targets:
+                    self.phase["unused_reserved_window_targets"] = (
+                        self.phase.get("unused_reserved_window_targets", 0) + unused_targets
+                    )
                 if self.device.type == "cuda":
                     torch.cuda.synchronize()
                 seconds = time.perf_counter() - start
@@ -327,7 +468,7 @@ class Trainer:
                     gradient_norm=float(gradient_norm),
                     clipped=bool(float(gradient_norm) + 1e-6 > c.clip),
                     sequence_length=c.sequence,
-                    accumulation=c.accumulation,
+                    accumulation=used_microsteps,
                     effective_batch=c.batch_size * c.accumulation,
                     microstep=self.microsteps,
                     data_loading_seconds=loading_seconds,

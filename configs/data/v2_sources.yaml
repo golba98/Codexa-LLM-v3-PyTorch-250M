@@ -1,0 +1,69 @@
+seed: 42
+sources:
+- attribution: HuggingFaceFW and original website authors; URL retained
+  category: general
+  directory: sample/10BT
+  exclude:
+  - sample/10BT/000_00000.parquet
+  license: ODC-By-1.0; Common Crawl terms; underlying rights retained
+  min_edu_score: 4
+  name: fineweb-edu
+  repo: HuggingFaceFW/fineweb-edu
+  revision: 87f09149ef4734204d70ed1d046ddc9ca3f2b8f9
+  target_share: 0.6
+- attribution: Ronen Eldan and Yuanzhi Li; GPT-4-generated synthetic stories
+  category: narrative
+  files:
+  - TinyStoriesV2-GPT4-train.txt
+  - TinyStoriesV2-GPT4-valid.txt
+  license: CDLA-Sharing-1.0
+  name: tinystories-gpt4
+  repo: roneneldan/TinyStories
+  revision: f54c09fd23315a6f9c86f9dc80f725de7d8f9c64
+  target_share: 0.15
+- attribution: Wikipedia contributors; article ID/title/URL retained
+  category: general
+  directory: 20231101.en
+  license: CC-BY-SA-3.0/GFDL as recorded in the pinned dataset card; underlying terms
+    apply
+  name: wikipedia-en
+  repo: wikimedia/wikipedia
+  revision: b04c8d1ceb2f5cd4588862100d08de323dccfbaa
+  target_share: 0.1
+- attribution: HuggingFaceTB Cosmopedia authors; Mixtral-generated educational prose
+  category: general
+  directories:
+  - data/openstax
+  - data/web_samples_v2
+  license: Apache-2.0 dataset declaration; synthetic seed provenance retained
+  name: cosmopedia-educational
+  repo: HuggingFaceTB/cosmopedia
+  revision: 0ae6ec63f91742bd2d1eaef4f02232c55d719385
+  target_share: 0.05
+- attribution: HuggingFaceTB Cosmopedia authors; Mixtral-generated stories
+  category: narrative
+  directory: data/stories
+  license: Apache-2.0 dataset declaration; synthetic seed provenance retained
+  name: cosmopedia-stories
+  repo: HuggingFaceTB/cosmopedia
+  revision: 0ae6ec63f91742bd2d1eaef4f02232c55d719385
+  target_share: 0.0
+- attribution: OpenWebMath authors and original website authors; URL retained
+  category: math
+  directory: data
+  exclude:
+  - data/train-00000-of-00114-5a023365406cb9c4.parquet
+  license: ODC-By-1.0; Common Crawl terms; underlying rights retained
+  name: openwebmath
+  repo: open-web-math/open-web-math
+  revision: fde8ef8de2300f5e778f56261843dab89f230815
+  target_share: 0.1
+- attribution: HuggingFaceFW and original website authors; URL retained
+  category: general
+  directory: sample/10BT
+  license: ODC-By-1.0; Common Crawl terms; underlying rights retained
+  name: fineweb
+  repo: HuggingFaceFW/fineweb
+  revision: 9bb295ddab0e05d785b879661af7260fed5140fc
+  target_share: 0.0
+version: 1

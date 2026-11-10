@@ -1,0 +1,12 @@
+version: 1
+seed: 42
+sources:
+- name: finemath-4plus
+  repo: HuggingFaceTB/finemath
+  revision: e92b25a616738fe95dc186b64dfb19f9c8525594
+  directory: finemath-4plus
+  category: math
+  min_edu_score: 4
+  target_share: 0.045
+  license: ODC-By-1.0; Common Crawl and underlying content terms retained
+  attribution: HuggingFaceTB FineMath authors and original website authors; URL retained

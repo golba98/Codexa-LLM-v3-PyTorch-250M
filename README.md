@@ -1,8 +1,10 @@
 # Codexa v3
 
+Current status: the pinned Common Pile English Wikipedia subset passes the authorized full quality reevaluation (94/100 documents; 293/300 windows). Direct streaming, internal-use rights and capacity above 1 billion additional Codexa tokens are configured, preserving the existing 500M checkpoint and tokenizer. Explicit training-launch authorization remains pending. See [source admission](docs/DATASETS.md#direct-language-streaming-and-source-decisions-2026-11-10) and [streaming readiness](docs/TRAINING.md#direct-streaming-continuation-readiness). Mathematics specialization remains deferred.
+
 A custom PyTorch decoder-only language model research project, trained from random initialization. The primary architecture has **248,687,488 parameters**: 24 layers, width 896, 14 heads, SwiGLU, RMSNorm, RoPE and tied embeddings. Configurations support 2K–32K context; architectural support does not establish trained long-context capability.
 
-**No pretrained public model is available.** CPU/CUDA smoke training, exact CPU recovery, inference, Rich terminal monitoring, a separate local browser dashboard and SafeTensors exports are implemented. Production corpus approval and sustained pretraining remain future work.
+**No pretrained public model is available.** An internal 500M-token base checkpoint has completed training; its language limitations are documented in the [diagnostic report](docs/CODEXA_V3_DIAGNOSTIC_REPORT.md). [Dataset v2 preparation](docs/CODEXA_V3_DATASET_V2.md) produced 2.108B audited new training positions; rejection-only remediation retained 2.077B with the frozen tokenizer. The [continuation readiness report](docs/CODEXA_V3_TRAINING_READINESS.md) records a verified, untrained exact-50M bundle. The conditionally authorized continuation **was not launched**: a complete 500-item review still fails FineMath and FineWeb-Edu quality thresholds. The 5B expansion remains deferred; no publication is authorized.
 
 V1 explored PyTorch; v2 explored NumPy/CuPy. V3 is a separate implementation.
 

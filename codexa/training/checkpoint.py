@@ -28,6 +28,22 @@ def restore_rng(state: dict[str, Any]) -> None:
         torch.cuda.set_rng_state_all(state["cuda"])
 
 
+def check_volume(path: Path, expected_uuid: str | None) -> None:
+    if expected_uuid is None:
+        return
+    import shutil
+    import subprocess
+
+    ancestor = path.resolve()
+    while not ancestor.exists():
+        ancestor = ancestor.parent
+    actual = subprocess.check_output(
+        ["findmnt", "-T", str(ancestor), "-n", "-o", "UUID"], text=True
+    ).strip()
+    if actual != expected_uuid or shutil.disk_usage(ancestor).free < 20 * 1024**3:
+        raise OSError("Checkpoint volume unavailable, wrong identity, or below 20 GiB reserve")
+
+
 def save_atomic(state: dict[str, Any], path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

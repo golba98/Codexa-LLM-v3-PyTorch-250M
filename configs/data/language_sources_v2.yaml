@@ -1,0 +1,80 @@
+version: codexa-language-data-2
+sources:
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_1.parquet
+  bytes: 429962586
+  sha256: 4ee719a130b7f86978b08c20cc9f490309e2bae2a5c0df4f04fd427365530f07
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_3.parquet
+  bytes: 426056523
+  sha256: 5c5e88303b6f24a59bedb9224dd2e591d5096f37de3dbd186749a4c86860adae
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_5.parquet
+  bytes: 424090812
+  sha256: 400ce699e16eb8a0822d47b36e4c2b5828f6c9744574940c8a6ba0d07fa280c3
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_7.parquet
+  bytes: 427410631
+  sha256: 3976ca68d9f12949449bf3a13efb8a564147de3ea3bba61020cc843309e9c4ed
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_9.parquet
+  bytes: 443426226
+  sha256: 8a4640d4879c5de44d4a744a76315ea536299d455faf320ac32e1a4239d12aaa
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true
+- name: common-corpus
+  category: general
+  repo: PleIAs/common_corpus
+  revision: 307910e4c5d040d6f318e6edf2a2b97849155771
+  path: common_corpus_1/subset_100_10.parquet
+  bytes: 434216812
+  sha256: f25c81976857f9b4a5ae26de399e4dc3235ece86a3943e45ef45b0029f8b11bf
+  license: Per-document original rights required; no aggregate grant assumed
+  target_share: 1.0
+  adapter: codexa-common-modern-english-1
+  filter:
+    maximum_word_length: 64
+    require_terminal: true

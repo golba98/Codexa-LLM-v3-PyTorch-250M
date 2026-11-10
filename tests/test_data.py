@@ -74,6 +74,51 @@ def test_duplicate_holdout(tmp_path):
     db.close()
 
 
+def test_curation_io_tuning_preserves_resume(tmp_path):
+    config = fixture(tmp_path)
+    full = curate(config, str(tmp_path / "full"))
+
+    def interrupt(_):
+        raise RuntimeError("committed interruption")
+
+    partial = tmp_path / "partial"
+    with pytest.raises(RuntimeError, match="committed interruption"):
+        curate(config, str(partial), progress=interrupt, commit_every=2, cache_mib=16)
+    curate(config, str(partial), resume=True, commit_every=1000, cache_mib=256, wal=True)
+    for table in ("docs", "errors", "split_groups"):
+        with sqlite3.connect(full / "documents.sqlite") as a:
+            expected = sorted(a.execute(f"SELECT * FROM {table}").fetchall())
+        with sqlite3.connect(partial / "documents.sqlite") as b:
+            assert sorted(b.execute(f"SELECT * FROM {table}").fetchall()) == expected
+    with sqlite3.connect(partial / "documents.sqlite") as db:
+        plan = db.execute(
+            "EXPLAIN QUERY PLAN DELETE FROM bands WHERE id=?", ("fixture",)
+        ).fetchall()
+        assert any("SEARCH bands" in row[-1] for row in plan)
+    for key in ("identity", "config", "counts", "errors"):
+        assert (
+            json.loads((full / "manifest.json").read_text())[key]
+            == json.loads((partial / "manifest.json").read_text())[key]
+        )
+    with pytest.raises(ValueError, match="Positive curation"):
+        curate(config, str(tmp_path / "invalid"), commit_every=0)
+
+
+def test_completed_curation_does_not_add_indexes(tmp_path):
+    config = fixture(tmp_path)
+    root = curate(config, str(tmp_path / "completed"))
+    with sqlite3.connect(root / "documents.sqlite") as db:
+        db.execute("DROP INDEX bands_id")
+    manifest = json.loads((root / "manifest.json").read_text())
+    checksum = digest(root / "documents.sqlite")
+    manifest["database_sha256"] = checksum
+    (root / "manifest.json").write_text(json.dumps(manifest))
+    manifest_checksum = digest(root / "manifest.json")
+    curate(config, str(root), resume=True, wal=True, cache_mib=256)
+    assert digest(root / "documents.sqlite") == checksum
+    assert digest(root / "manifest.json") == manifest_checksum
+
+
 @pytest.mark.parametrize("size", [1, 2, 3, 17, 128, 1001])
 def test_permutation(size):
     sampler = PermutationSampler(size, 42)
@@ -123,7 +168,15 @@ def test_formats(tmp_path):
     assert [r["text"] for _, r in records(p, "parquet")] == ["one", "two"]
 
 
-def test_near_and_embedded_holdouts(tmp_path):
+@pytest.mark.parametrize(
+    "io_options",
+    [
+        {},
+        {"commit_every": 1000, "cache_mib": 256, "wal": True, "protected_cache_entries": 2000},
+        {"protected_cache_entries": 1},
+    ],
+)
+def test_near_and_embedded_holdouts(tmp_path, io_options):
     config = fixture(tmp_path)
     text = " ".join("word" + str(i) for i in range(180))
     val = Path(config["sources"][1]["paths"][0])
@@ -133,7 +186,7 @@ def test_near_and_embedded_holdouts(tmp_path):
     with train.open("a") as f:
         f.write(json.dumps({"text": text.replace("word175", "different")}) + "\n")
     config["near_duplicates"] = True
-    root = curate(config, str(tmp_path / "near"))
+    root = curate(config, str(tmp_path / "near"), **io_options)
     assert json.loads((root / "manifest.json").read_text())["errors"]["duplicate"] >= 1
     # Short embedded protected span in a much longer training document.
     config["near_duplicates"] = False
@@ -144,7 +197,7 @@ def test_near_and_embedded_holdouts(tmp_path):
     with train.open("a") as f:
         f.write(json.dumps({"text": text + " " + phrase}) + "\n")
     # Shared fixture boilerplate is intentionally contaminated too: strict gate may empty train.
-    protected = curate(config, str(tmp_path / "protected"))
+    protected = curate(config, str(tmp_path / "protected"), **io_options)
     assert json.loads((protected / "manifest.json").read_text())["errors"]["holdout_overlap"] >= 1
     assert not any(phrase in t for t in documents(protected))
 
@@ -260,3 +313,22 @@ def test_parent_group_isolation(tmp_path):
             )
     root = curate(cfg, str(tmp_path / "groups"))
     assert json.loads((root / "manifest.json").read_text())["errors"]["group_overlap"] == 1
+
+
+def test_checksums_do_not_replace_boundary_validation(prepared, tmp_path):
+    import numpy as np
+
+    _, tok, _ = prepared
+    dataset = curate(fixture(tmp_path), str(tmp_path / "curated"))
+    output = tokenize(dataset, tok, str(tmp_path / "tokens"))
+    path = output / "manifest.json"
+    manifest = json.loads(path.read_text())
+    entry = manifest["splits"]["train"][0]
+    index = output / entry["index"]
+    offsets = np.fromfile(index, dtype="<u8")
+    offsets[0] = 1
+    offsets.tofile(index)
+    entry["index_sha256"] = digest(index)
+    path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError, match="boundaries"):
+        verify(output)

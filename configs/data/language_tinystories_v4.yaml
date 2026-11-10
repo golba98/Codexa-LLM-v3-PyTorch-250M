@@ -1,0 +1,17 @@
+version: codexa-language-data-4
+sources:
+  - name: tinystories-gpt4
+    repo: roneneldan/TinyStories
+    revision: f54c09fd23315a6f9c86f9dc80f725de7d8f9c64
+    path: TinyStoriesV2-GPT4-train.txt
+    bytes: 2227753162
+    sha256: 6418d412de72888f52b5142c761ac21a582f7d1166f0bfbdb5f03ccfdec90443
+    local_glob: tinystories-gpt4--TinyStoriesV2-GPT4-train.txt
+    category: narrative
+    license: CDLA-Sharing-1.0
+    rights_policy: codexa-tinystories-creator-cdla-1
+    attribution: Ronen Eldan and Yuanzhi Li; roneneldan/TinyStories; GPT-4 synthetic stories
+    target_share: 1.0
+    filter:
+      require_terminal: true
+      maximum_word_length: 64

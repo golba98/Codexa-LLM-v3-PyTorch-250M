@@ -1,12 +1,43 @@
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, cast
 
 
 def main() -> None:
     import sys
 
+    if sys.argv[1:3] == ["data", "stream-probe"]:
+        from codexa.data.stream_probe import main as stream_probe_main
+
+        sys.argv[1:3] = []
+        stream_probe_main()
+        return
+    if sys.argv[1:3] == ["data", "language"]:
+        from codexa.data.language import main as language_data_main
+
+        language_data_main(sys.argv[3:])
+        return
+    if sys.argv[1:3] == ["language", "v1"]:
+        from codexa.evaluation.language import main as language_v1_main
+
+        language_v1_main(sys.argv[3:])
+        return
+    if sys.argv[1:3] == ["data", "v2"]:
+        from codexa.data.v2 import main as v2_main
+
+        v2_main(sys.argv[3:])
+        return
+    if sys.argv[1:2] == ["language"]:
+        from codexa.evaluation.benchmark import main as language_main
+
+        language_main(sys.argv[2:])
+        return
+    if sys.argv[1:2] == ["continuation"]:
+        from codexa.continuation import main as continuation_main
+
+        continuation_main(sys.argv[2:])
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "dashboard":
         from codexa.dashboard.server import main as dashboard_main
 
@@ -68,11 +99,32 @@ def main() -> None:
     data.add_argument("--output", required=True)
     train = commands.add_parser("train")
     train.add_argument("--config", default="configs/smoke.yaml")
-    train.add_argument("--data", required=True)
+    train_data = train.add_mutually_exclusive_group(required=True)
+    train_data.add_argument("--data")
+    train_data.add_argument("--stream-config")
     train.add_argument("--tokenizer", required=True)
     train.add_argument("--output", required=True)
     train.add_argument("--device", default="auto")
     train.add_argument("--resume")
+    train.add_argument(
+        "--forward-only",
+        action="store_true",
+        help="Verify configured streaming, model and checkpoint without updates",
+    )
+    train.add_argument(
+        "--parent-checkpoint", help="Read-only parent load for a forward-only stream check"
+    )
+    train.add_argument(
+        "--max-bytes", type=int, help="Required network cap for a forward-only streaming check"
+    )
+    train.add_argument(
+        "--stream-check-windows",
+        type=int,
+        default=1,
+        help="Bounded production-loader batches for a forward-only check",
+    )
+    train.add_argument("--checkpoint-volume-uuid")
+    train.add_argument("--deterministic", action="store_true")
     train.add_argument(
         "--ui",
         choices=["auto", "terminal", "none"],
@@ -142,11 +194,122 @@ def main() -> None:
     elif args.command == "data":
         prepare(args.corpus, args.tokenizer, args.output)
     elif args.command == "train":
+        config = Config.load(args.config)
+        streams = None
+        if args.parent_checkpoint and not args.forward_only:
+            raise ValueError("Parent loading here is restricted to forward-only checks")
+        if not args.forward_only and (args.max_bytes is not None or args.stream_check_windows != 1):
+            raise ValueError("Loader-check bounds require --forward-only")
+        if args.forward_only:
+            if not 1 <= args.stream_check_windows <= 2048:
+                raise ValueError("Forward-only loader check exceeds bounded batch count")
+            if (
+                not args.stream_config
+                or not args.max_bytes
+                or not 0 < args.max_bytes <= 64 * 1024**2
+            ):
+                raise ValueError(
+                    "Forward-only stream checks require a configuration and at most 64 MiB network cap"
+                )
+            if Path(args.output).exists():
+                raise FileExistsError("Use a fresh forward-only output directory")
+            from codexa.safety import forward_only
+
+            forward_only()
+        if args.stream_config:
+            from codexa.data.stream_policy import configured_streams
+            from codexa.data.stream_probe import ByteBudget
+            from codexa.data.streaming import open_provider
+
+            budget = ByteBudget(args.max_bytes) if args.forward_only else None
+            streams = configured_streams(
+                args.stream_config,
+                args.tokenizer,
+                config.training.sequence,
+                config.training.seed,
+                require_launch=not args.forward_only,
+                opener=(lambda shard: cast(BinaryIO, budget.wrap(open_provider(shard))))
+                if budget
+                else open_provider,
+            )
+        if args.deterministic:
+            torch.use_deterministic_algorithms(True)
         trainer = Trainer(
-            Config.load(args.config), args.data, args.tokenizer, args.output, args.device
+            config,
+            args.data or args.stream_config,
+            args.tokenizer,
+            args.output,
+            args.device,
+            checkpoint_volume_uuid=args.checkpoint_volume_uuid,
+            stream_data=streams,
         )
         if args.resume:
             trainer.resume(args.resume)
+        if args.forward_only:
+            if args.parent_checkpoint:
+                from codexa.training.checkpoint import load
+
+                parent = load(args.parent_checkpoint)
+                if Config.from_dict(parent["config"]).model != config.model:
+                    raise ValueError("Parent architecture differs from stream check")
+                trainer.model.load_state_dict(parent["model"])
+                trainer.optimizer.load_state_dict(parent["optimizer"])
+            trainer.model.eval()
+            import time
+
+            if trainer.device.type == "cuda":
+                torch.cuda.synchronize()
+            loading_start = time.perf_counter()
+            x, y = trainer.train_data.batch(
+                trainer.sampler.next(config.training.batch_size), trainer.device
+            )
+            first_loaded = time.perf_counter()
+            for _ in range(args.stream_check_windows - 1):
+                trainer.train_data.batch(
+                    trainer.sampler.next(config.training.batch_size), trainer.device
+                )
+            if trainer.device.type == "cuda":
+                torch.cuda.synchronize()
+            loading_finished = time.perf_counter()
+            with torch.inference_mode(), trainer.amp():
+                logits = trainer.model(x)
+                if not torch.isfinite(logits).all():
+                    raise FloatingPointError("Nonfinite stream forward")
+            validation = trainer.validate()
+            trainer.checkpoint("stream-check.pt")
+            import hashlib
+
+            batch_identity = hashlib.sha256(
+                json.dumps(
+                    torch.cat((x[:, :1], y), dim=1).cpu().tolist(), separators=(",", ":")
+                ).encode()
+            ).hexdigest()
+            saved_stream = trainer.sampler.state_dict()
+            following = trainer.sampler.next(config.training.batch_size)
+            following_identity = hashlib.sha256(
+                json.dumps(following, separators=(",", ":")).encode()
+            ).hexdigest()
+            trainer.sampler.load_state_dict(saved_stream)
+            print(
+                json.dumps(
+                    {
+                        "status": "forward-only",
+                        "validation_loss": validation,
+                        "optimizer_updates": 0,
+                        "backward_calls": 0,
+                        "network_bytes": budget.used if budget else 0,
+                        "stream_windows": trainer.train_data.windows,
+                        "batch_sha256": batch_identity,
+                        "next_batch_sha256": following_identity,
+                        "first_loader_batch_seconds": first_loaded - loading_start,
+                        "subsequent_loader_seconds": loading_finished - first_loaded,
+                        "subsequent_loader_target_positions": (args.stream_check_windows - 1)
+                        * config.training.batch_size
+                        * config.training.sequence,
+                    }
+                )
+            )
+            return
         trainer.train(until=args.until, ui=args.ui)
     elif args.command in ("release", "export", "evaluate"):
         from codexa.release.commands import dispatch

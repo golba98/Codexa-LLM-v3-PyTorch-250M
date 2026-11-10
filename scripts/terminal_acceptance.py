@@ -87,6 +87,10 @@ def capture(a):
         "--ui",
         a.ui,
     ]
+    if a.deterministic:
+        command += ["--deterministic"]
+    if a.checkpoint_volume_uuid:
+        command += ["--checkpoint-volume-uuid", a.checkpoint_volume_uuid]
     if a.resume:
         command += ["--resume", a.resume]
     env = os.environ.copy()
@@ -106,7 +110,7 @@ def capture(a):
     started = time.monotonic()
     try:
         while True:
-            if time.monotonic() - started > 60:
+            if time.monotonic() - started > a.timeout:
                 raise TimeoutError("Bounded terminal acceptance timed out")
             ready, _, _ = select.select([master], [], [], 0.1)
             if ready:
@@ -245,9 +249,12 @@ def main():
     p.add_argument("--tokenizer", default="outputs/tokenizers/smoke/tokenizer.json")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--device", default="cpu")
+    p.add_argument("--timeout", type=float, default=60)
     p.add_argument("--until", type=int, default=200)
     p.add_argument("--ui", choices=["auto", "terminal"], default="terminal")
     p.add_argument("--resume")
+    p.add_argument("--deterministic", action="store_true")
+    p.add_argument("--checkpoint-volume-uuid")
     p.add_argument("--width", type=int, default=120)
     p.add_argument("--height", type=int, default=36)
     p.add_argument("--resize-to")
