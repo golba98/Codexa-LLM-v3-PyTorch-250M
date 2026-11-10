@@ -367,7 +367,7 @@ def test_prepare_shards_and_resume_without_training(prepared, tmp_path, monkeypa
     assert repeated["training_tokens"] == result["training_tokens"]
     assert saved == [(p.name, p.read_bytes()) for p in (storage.root / "tokens").glob("*.bin")]
     from codexa.data.v2_finalize import finalize
-    from scripts.audit_v2_snapshot import audit
+    from scripts.datasets.audit_v2_snapshot import audit
 
     snapshot = finalize(storage.root, tok, "fixture")
     assert snapshot["all_accepted_documents_reconstructed"]

@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 spec = importlib.util.spec_from_file_location(
-    "junior_inventory", Path(__file__).parents[1] / "scripts" / "build_junior_inventory.py"
+    "junior_inventory",
+    Path(__file__).parents[1]
+    / "scripts"
+    / "datasets"
+    / "mathematics"
+    / "build_junior_inventory.py",
 )
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

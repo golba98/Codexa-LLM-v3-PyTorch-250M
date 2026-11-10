@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from scripts.revise_middle_completion import CORRECTIONS, revise
+from scripts.datasets.mathematics.revise_middle_completion import CORRECTIONS, revise
 
 
 def test_corrected_answers_keep_lineage_and_original_unchanged() -> None:

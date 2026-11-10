@@ -245,7 +245,7 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode, monkeypatch):
     result = subprocess.run(
         [
             sys.executable,
-            "scripts/terminal_acceptance.py",
+            "scripts/training/terminal_acceptance.py",
             "--data",
             data,
             "--tokenizer",
@@ -316,7 +316,7 @@ def test_frame_capture_chunk_independence():
     pytest.importorskip("pyte")
     import pyte
 
-    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    capture = runpy.run_path("scripts/training/terminal_acceptance.py")["FrameCapture"]
     raw = "\x1b[?1049h\x1b[HCODEXA 0 / 200  0.0%\r\nTraining\x1b[HCODEXA 80 / 200  40.0%\r\nTraining\x1b[?1049l"
     for chunks in ([raw], list(raw)):
         screen = capture(60, 24)
@@ -340,7 +340,7 @@ def test_worker_preserves_queued_startup(monkeypatch):
 
     pytest.importorskip("rich")
     pyte = pytest.importorskip("pyte")
-    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    capture = runpy.run_path("scripts/training/terminal_acceptance.py")["FrameCapture"]
     parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 60, 0, 0))

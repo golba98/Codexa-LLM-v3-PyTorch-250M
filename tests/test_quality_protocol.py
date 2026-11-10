@@ -8,7 +8,7 @@ from codexa.data.math_integrity import affine_coefficients, affine_findings
 from codexa.data.quality_findings import findings
 from codexa.data.quality_protocol import CHECKS, adjudicate, specification
 from codexa.data.remediate import prove_quality_narrowing
-from scripts.combine_quality_reviews import combined
+from scripts.datasets.combine_quality_reviews import combined
 
 
 def packet(kind="primary"):
@@ -218,7 +218,7 @@ def test_continuation_terminal_exposes_phase_and_lifetime_counters():
 def test_smoke_preflight_isolated_from_training_autograd(tmp_path, monkeypatch):
     import subprocess
 
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     captured = {}
 
@@ -239,7 +239,7 @@ def test_blind_document_must_match_actual_training_bytes(tmp_path, split):
 
     import numpy as np
 
-    from scripts.verify_review_packet import compare_documents
+    from scripts.datasets.verify_review_packet import compare_documents
 
     np.asarray([2, 4, 5, 3], dtype="<u2").tofile(tmp_path / "train.bin")
     np.asarray([0], dtype="<u8").tofile(tmp_path / "train.idx")

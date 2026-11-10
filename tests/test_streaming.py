@@ -412,6 +412,30 @@ def test_configured_trainer_policy_checkpoint_path(prepared, tmp_path):
 
 
 def test_stream_phase_preserves_native_parent_without_updates(prepared, tmp_path):
+    # phase_state installs irreversible process-wide guards. Keep them in a child,
+    # rather than resetting production guards or leaking them into later tests.
+    import subprocess
+    import sys
+
+    code = (
+        "import runpy, sys; from pathlib import Path; "
+        "scope = runpy.run_path('tests/test_streaming.py'); "
+        "scope['_stream_phase_fixture'](tuple(sys.argv[1:4]), Path(sys.argv[4])); "
+        "from codexa.safety import require_training_allowed; "
+        "require_training_allowed()"
+    )
+    child = subprocess.run(
+        [sys.executable, "-c", code, *prepared, str(tmp_path)],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=30,
+    )
+    assert child.returncode != 0
+    assert "Training is prohibited in this preparation process" in child.stderr, child.stderr
+
+
+def _stream_phase_fixture(prepared, tmp_path):
     from codexa.continuation import phase_state
     from codexa.data.packing import fingerprint
     from codexa.training.checkpoint import load
@@ -657,7 +681,7 @@ def test_stream_launch_recomputes_reviews_and_requires_bound_authorization(
 def test_frozen_assessment_screen_preserves_existing_thresholds(tmp_path):
     from codexa.data.production import digest
     from codexa.evaluation.protection import FrozenAssessmentProtection
-    from scripts.screen_reserved_math import normalise, shape
+    from scripts.datasets.mathematics.screen_reserved_math import normalise, shape
 
     text = "How many of the original 37 items in 5 boxes remain after giving away 9 items?"
     root = tmp_path / "protected-fixture"

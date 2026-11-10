@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.index_math_collections_v2 import band, index
+from scripts.datasets.mathematics.index_math_collections_v2 import band, index
 
 
 def test_band_indexes_keep_unmapped_and_do_not_duplicate_same_band(tmp_path: Path) -> None:

@@ -14,4 +14,4 @@ jobs:
       - run: uv pip sync requirements-lock.txt
       - run: uv pip install --no-deps -e .
       - run: .venv/bin/python scripts/verify.py
-      - run: PATH="$PWD/.venv/bin:$PATH" CODEXA_DEVICE=cuda sh scripts/smoke.sh
+      - run: PATH="$PWD/.venv/bin:$PATH" CODEXA_DEVICE=cuda sh scripts/training/smoke.sh

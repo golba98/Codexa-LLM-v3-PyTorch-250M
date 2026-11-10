@@ -1,0 +1,51 @@
+{
+  "captured": "2026-11-10",
+  "archive": "research-2026-11-10.tar.gz",
+  "scope": "Historical snapshots; decisions and links describe their original capture, not current readiness. Original bytes preserved.",
+  "records": [
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "8780cbc81b958724896134f896bb305a893ff3597801ebdebb39d9851252450b"
+    },
+    {
+      "path": "docs/CODEXA_V3_DATASET_V2.md",
+      "sha256": "a834404a13a8dae82f58fe015d2899277925b1b7f80bb2426c4ebb9f1cab3901"
+    },
+    {
+      "path": "docs/CODEXA_V3_DIAGNOSTIC_REPORT.md",
+      "sha256": "62fe4f7e8e402ecebbf8a6607eb15a8620f6b597138c037258533361e4dac8dd"
+    },
+    {
+      "path": "docs/CODEXA_V3_STORAGE_AUDIT.md",
+      "sha256": "479b41e06e43f6e237ecdb787eebe29d22d042b4b8ae25806306fa8a3a1cb249"
+    },
+    {
+      "path": "docs/CODEXA_V3_TRAINING_READINESS.md",
+      "sha256": "5ca35072c8bf7407345ea7e983e04ed7373faec9aa23bdeeb2b3005984e2ec0e"
+    },
+    {
+      "path": "docs/DATASETS.md",
+      "sha256": "5ad748bd6656ab07fc9b134b845f2a0e3c2781ce63c806f6052027f8160530cb"
+    },
+    {
+      "path": "docs/RELEASE.md",
+      "sha256": "60a126ee409cdd91a12770eea172e2f0234fd24bf39a56ccf07ef9f6a90aa363"
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "sha256": "518f83a9c1b3d4afa007de6789635a3798e7dae3c5e5d30e17138455b960328c"
+    },
+    {
+      "path": "docs/TRAINING.md",
+      "sha256": "98eaf69d31946d518d2facdb52db181ea07df299d5a81f24210b1c55e05731b9"
+    },
+    {
+      "path": "docs/benchmarks/README.md",
+      "sha256": "c6fc9740e563aa2b4d55979856e25f7e9ba860ddb84e0853d961d8d9c019397c"
+    },
+    {
+      "path": "reports/codexa-v3-comprehensive-status-audit.md",
+      "sha256": "d8b07fd7f068ce5b1716c452bcec64ec43bab41b7bdcdf70eaa9dfcb07de16bc"
+    }
+  ]
+}

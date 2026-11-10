@@ -7,7 +7,7 @@ from typing import Any
 
 from codexa.data.production import atomic, digest
 from codexa.data.quality_protocol import CHECKS
-from scripts.review_continuation_corpus import adjudicate
+from scripts.datasets.review_continuation_corpus import adjudicate
 
 
 def combined(inputs: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:

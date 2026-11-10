@@ -4,7 +4,12 @@ import importlib.util
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location(
-    "junior_exercises", Path(__file__).parents[1] / "scripts" / "extract_junior_exercise_entries.py"
+    "junior_exercises",
+    Path(__file__).parents[1]
+    / "scripts"
+    / "datasets"
+    / "mathematics"
+    / "extract_junior_exercise_entries.py",
 )
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

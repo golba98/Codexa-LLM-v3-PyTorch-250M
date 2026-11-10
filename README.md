@@ -1,71 +1,63 @@
 # Codexa v3
 
-Current status: the pinned Common Pile English Wikipedia subset passes the authorized full quality reevaluation (94/100 documents; 293/300 windows). Direct streaming, internal-use rights and capacity above 1 billion additional Codexa tokens are configured, preserving the existing 500M checkpoint and tokenizer. Explicit training-launch authorization remains pending. See [source admission](docs/DATASETS.md#direct-language-streaming-and-source-decisions-2026-11-10) and [streaming readiness](docs/TRAINING.md#direct-streaming-continuation-readiness). Mathematics specialization remains deferred.
+Codexa v3 is a custom PyTorch decoder-only language model built from random initialization. It supports research into general language learning and, in a separate workstream, Grade 1–12 mathematics. The primary model has **248,687,488 parameters**: 24 layers, width 896, 14 attention heads, SwiGLU, RMSNorm, RoPE and tied embeddings. The implementation lives in [codexa/architecture](codexa/architecture/).
 
-A custom PyTorch decoder-only language model research project, trained from random initialization. The primary architecture has **248,687,488 parameters**: 24 layers, width 896, 14 heads, SwiGLU, RMSNorm, RoPE and tied embeddings. Configurations support 2K–32K context; architectural support does not establish trained long-context capability.
+An internal run completed **500,006,912 training-token targets**. Its checkpoint passes recorded integrity and validation checks, but generation still suffers from repetition, factual errors and poor response coherence. **No pretrained public weights are available.** Configured 2K–32K context support does not establish learned long-context capability.
 
-**No pretrained public model is available.** An internal 500M-token base checkpoint has completed training; its language limitations are documented in the [diagnostic report](docs/CODEXA_V3_DIAGNOSTIC_REPORT.md). [Dataset v2 preparation](docs/CODEXA_V3_DATASET_V2.md) produced 2.108B audited new training positions; rejection-only remediation retained 2.077B with the frozen tokenizer. The [continuation readiness report](docs/CODEXA_V3_TRAINING_READINESS.md) records a verified, untrained exact-50M bundle. The conditionally authorized continuation **was not launched**: a complete 500-item review still fails FineMath and FineWeb-Edu quality thresholds. The 5B expansion remains deferred; no publication is authorized.
+The owner has authorized a future **1B additional-token language continuation** using the reviewed, pinned English Wikipedia source. Training is prohibited during this repository cleanup and has not started. The saved machine launch record remains pending; it must be finalized separately with all gates intact. See [continuation readiness](reports/language/continuation-readiness.md), [completed training](reports/training/base-500m.md) and [language evaluation](reports/evaluation/language-baseline.md).
 
-V1 explored PyTorch; v2 explored NumPy/CuPy. V3 is a separate implementation.
+Mathematics corpus development proceeds separately. Source extracts, curriculum mappings, synthetic candidates and protected reviews are retained outside Git; they do not constitute an approved mathematics training corpus. See [mathematics status](reports/datasets/mathematics-corpus.md).
 
 ## Install
 
-Python 3.11–3.13; Linux is verified. Use the CPU lock for development or the CUDA lock for the recorded RTX 4080 environment:
+Python 3.11–3.13; Linux is verified. From the repository root:
 
 ```sh
+python -m pip install uv==0.13.5
 uv venv --python 3.13 .venv
 uv pip sync requirements-cpu-lock.txt
 uv pip install --no-deps -e .
 source .venv/bin/activate
+codexa --help
 ```
 
-Optional Parquet ingestion requires `uv pip install -e '.[data]'`. Existing dependency pins are retained. CUDA wheels include their runtime; install an appropriate NVIDIA driver separately.
+Use `requirements-lock.txt` for the recorded CUDA environment. Optional Parquet ingestion uses the `data` extra; installation details and dependency boundaries are in [CONTRIBUTING](CONTRIBUTING.md). Existing pins are retained.
 
-## Quick start
+## Inference
 
-The original small corpus is an engineering fixture, not a generalization benchmark:
+For a trusted existing native checkpoint with its embedded tokenizer:
 
 ```sh
-codexa tokenizer train --corpus examples/corpus --vocab-size 512 --output outputs/tokenizers/demo/tokenizer.json
-codexa data prepare --corpus examples/corpus --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/datasets/demo
-codexa train --config configs/smoke.yaml --data outputs/datasets/demo --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/experiments/demo --device cpu --until 50 --ui terminal
-codexa train --config configs/smoke.yaml --data outputs/datasets/demo --tokenizer outputs/tokenizers/demo/tokenizer.json --output outputs/experiments/demo --device cpu --resume outputs/experiments/demo/latest.pt
-codexa generate --checkpoint outputs/experiments/demo/latest.pt --prompt 'Morning light' --max-tokens 16 --greedy
+codexa generate --checkpoint /path/to/checkpoint.pt --prompt 'Morning light' --max-tokens 32 --greedy
 ```
 
-Training selects the full Rich TUI automatically on a capable TTY. `--ui none` is headless; Ctrl+C safely checkpoints after the current update. `codexa dashboard` starts the independent browser viewer. No port is required for terminal monitoring.
+Replace the checkpoint path with an available local artifact. Public users must provide their own checkpoint; the repository does not download weights. SafeTensors exports use Codexa's loader; see the [release guide](docs/release.md). Random initialization and tiny smoke fixtures are engineering checks, not capability demonstrations.
 
-![Terminal training](docs/images/terminal-training-full.png)
-
-## Production data workflow
-
-Use a reviewed source manifest, or explicitly fetch the small pinned WikiText-2 verification sample (under 100 MiB), then curate and prepare immutable uint16 shards:
-
-```sh
-codexa data sample --output outputs/datasets/wikitext-sample
-codexa data curate --config outputs/datasets/wikitext-sample/config.yaml --output outputs/datasets/curated
-codexa tokenizer train --dataset outputs/datasets/curated --vocab-size 16384 --output outputs/tokenizers/candidate.json
-codexa tokenizer evaluate --dataset outputs/datasets/curated --tokenizer outputs/tokenizers/candidate.json
-codexa tokenizer freeze --tokenizer outputs/tokenizers/candidate.json --output outputs/tokenizers/frozen
-codexa data prepare --dataset outputs/datasets/curated --tokenizer outputs/tokenizers/frozen/tokenizer.json --output outputs/datasets/prepared
-codexa data verify --data outputs/datasets/prepared
-```
-
-Edit source paths/provenance before using the production example. See [datasets](docs/DATASETS.md) for limits, contamination controls and candidate status. A candidate tokenizer is not an approved production freeze. Never launch the 100M-token pilot or 5B-token run without explicit authorization.
-
-## Development and documentation
+## Development
 
 ```sh
 python scripts/verify.py
-sh scripts/smoke.sh
-codexa benchmark --config configs/smoke.yaml --device cpu --sequence 64
 ```
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Training, monitoring and recovery](docs/TRAINING.md)
-- [Datasets and tokenizer](docs/DATASETS.md)
-- [Research roadmap](docs/ROADMAP.md)
-- [Release process](docs/RELEASE.md)
-- [Measured benchmarks](docs/benchmarks/README.md)
+This runs repository checks, Ruff lint/format checks, mypy and pytest. Training-dependent tests use tiny disposable CPU fixtures; there is no production training launch. For guarded forward-only verification:
 
-Source code is Apache-2.0; original fixtures are CC0. External datasets and model weights require separate licensing review. See [contributing](CONTRIBUTING.md), [security](SECURITY.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Historical engineering records are preserved in the [archive index](docs/archive/index.json). No weights or large data belong in Git.
+```sh
+python scripts/verify.py --forward-only
+```
+
+Model profiles remain at `configs/250m.yaml`, `configs/50m.yaml` and `configs/smoke.yaml`; context profiles are in [configs/context](configs/context/) and source configurations in [configs/data](configs/data/). Script locations and bounded smoke instructions are in [CONTRIBUTING](CONTRIBUTING.md).
+
+## Find your way
+
+| Topic | Start here |
+| --- | --- |
+| All documentation and workflows | [Documentation index](docs/index.md) |
+| Model implementation and parameter accounting | [Architecture](docs/architecture.md) |
+| Training, inference, monitoring and recovery | [Training guide](docs/training.md) |
+| Sources, tokenizer, provenance and mathematics | [Dataset guide](docs/datasets.md) |
+| Current results and historical failures | [Report index](reports/README.md) |
+| Measured engineering performance | [Benchmark report](reports/benchmarks/recorded-performance.md) |
+| Milestones and remaining limitations | [Roadmap](docs/roadmap.md) |
+| Export formats and publication gates | [Release guide](docs/release.md) |
+
+Code is Apache-2.0; original fixtures are CC0. Dataset and weight permissions require separate review. See [third-party notices](THIRD_PARTY_NOTICES.md), [security](SECURITY.md) and [contributing](CONTRIBUTING.md). Native checkpoints, optimizer states, private assessments and downloaded corpora belong outside Git. V3 is independent of the earlier PyTorch v1 and NumPy/CuPy v2 projects.

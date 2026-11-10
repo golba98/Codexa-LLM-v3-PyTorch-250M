@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "report_id": "continuation-readiness",
+  "title": "1B language continuation readiness",
+  "purpose": "Show source admission, preserved baseline, authorization and remaining launch preparation independently.",
+  "date": "2026-11-10",
+  "run_id": "research-status-2026-11-10",
+  "model_version": "native-v1 500M; parent 54fca007f272fb37",
+  "dataset_version": "common-pile/wikimedia_filtered@0641bb84bd9b7162bcddf8be7836822161a9a342",
+  "status": "BLOCKED",
+  "summary": [
+    "The owner authorized the future 1B-token continuation in the cleanup request. This task explicitly prohibits starting it.",
+    "The pinned English Wikipedia subset passes its approved general-English quality rubric. The saved machine authorization record remains pending and unchanged."
+  ],
+  "metrics": [
+    {
+      "name": "Current checkpoint targets",
+      "value": "500,006,912",
+      "scope": "Recorded measurement"
+    },
+    {
+      "name": "Additional targets",
+      "value": "1,000,000,000",
+      "scope": "Owner-authorized future budget; not consumed"
+    },
+    {
+      "name": "Cumulative target",
+      "value": "1,500,006,912",
+      "scope": "Arithmetic budget, not achieved training"
+    },
+    {
+      "name": "Usable documents",
+      "value": "94 / 100",
+      "scope": "Conservative combination of two independent reviews"
+    },
+    {
+      "name": "Usable windows",
+      "value": "293 / 300",
+      "scope": "Conservative combination of two independent reviews"
+    },
+    {
+      "name": "Severe findings",
+      "value": "1 document; 3 windows; 0 critical",
+      "scope": "Recorded review"
+    },
+    {
+      "name": "Eligible training positions, lower bound",
+      "value": "3.606B",
+      "scope": "Approximate conditional 95% lower estimate; not full census"
+    },
+    {
+      "name": "Resumed loader positions/s",
+      "value": "23,736.9",
+      "scope": "Historical 176.6134s interval; loader only"
+    },
+    {
+      "name": "CUDA allocated / reserved bytes",
+      "value": "7,567,977,984 / 8,166,309,888",
+      "scope": "Recorded gradient residency check; zero optimizer updates"
+    },
+    {
+      "name": "Training started",
+      "value": "NO",
+      "scope": "No continuation launched by this cleanup"
+    }
+  ],
+  "methodology": [
+    "Reuse the pinned source panel, internal-use rights record, protected exclusions, native-token capacity estimate and prior compute/resume evidence.",
+    "Readiness reporting is descriptive. It never changes an authorization, prepares a phase or invokes a trainer."
+  ],
+  "results": [
+    "Quality: PASS. Rights: approved for internal pretraining subject to retained attribution and exclusions; public distribution is not approved.",
+    "Streaming: prior native next-batch recovery and fixed-validation replay passed; the full-model parent is unchanged.",
+    "Training authorization: owner-authorized for the future continuation. Execution during this task: prohibited. Saved machine launch record: pending finalization in a later launch-preparation task."
+  ],
+  "limitations": [
+    "Prior live throughput predates the added navigation exclusion; no new provider or GPU benchmark is claimed.",
+    "Gradient residency does not measure Adam-update speed or sustained training throughput.",
+    "Conversational competence, SFT readiness, mathematics training and publication remain separate gates."
+  ],
+  "evidence": [
+    {
+      "label": "protocol",
+      "location": "local:.agents/scratch/wikimedia-approved-reevaluation-v1/protocol.json",
+      "sha256": "5ce85641bcf30c1fdc27482b777255e337865b851ff55e6d8af9b2917a9656cf"
+    },
+    {
+      "label": "capacity",
+      "location": "local:.agents/scratch/wikimedia-approved-reevaluation-v1/capacity.json",
+      "sha256": "5f6b6851bc20bef34445f2ca9f905b73d230d40cc26a0a2c062361bd3b3b3e67"
+    },
+    {
+      "label": "compute",
+      "location": "local:.agents/scratch/wikimedia-approved-reevaluation-v1/compute-readiness.json",
+      "sha256": "8aad6df82e83b4933fb1603cbb89eac4fd17fd7067053779913e1a514fc8d1dd"
+    },
+    {
+      "label": "rights",
+      "location": "local:.agents/scratch/wikimedia-review-v1/rights.json",
+      "sha256": "69b58432f4f060c016a140513f38d0b51cc57c6a9d3c1b6bd2f3b1cc0ce15f99"
+    },
+    {
+      "label": "authorization",
+      "location": "local:.agents/scratch/wikimedia-approved-reevaluation-v1/training-authorization-pending.json",
+      "sha256": "aff4efae071c9241748617afa41d0003e9927d1710cb876e894c2a0dbd396a2a"
+    },
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/TRAINING.md",
+      "sha256": "98eaf69d31946d518d2facdb52db181ea07df299d5a81f24210b1c55e05731b9"
+    },
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/DATASETS.md",
+      "sha256": "5ad748bd6656ab07fc9b134b845f2a0e3c2781ce63c806f6052027f8160530cb"
+    }
+  ],
+  "next_actions": [
+    "Complete repository verification and review the cleanup PR.",
+    "In a later authorized launch-preparation task, finalize source/config-bound machine authorization and revalidate all unchanged gates before preparing a fresh phase.",
+    "Do not launch training as part of repository maintenance."
+  ],
+  "kind": "continuation-readiness",
+  "training": {
+    "authorized": true,
+    "execution_permitted": false,
+    "started": false
+  },
+  "gates": {
+    "quality": "PASS",
+    "internal_rights": "PASS",
+    "historical_stream_resume": "PASS",
+    "historical_compute_scope": "PASS",
+    "machine_launch_record": "BLOCKED",
+    "cleanup_execution": "BLOCKED"
+  }
+}

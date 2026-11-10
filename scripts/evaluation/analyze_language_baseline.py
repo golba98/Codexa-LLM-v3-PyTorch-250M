@@ -84,8 +84,33 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--report", type=Path, help="Write a new human summary beside retained JSON evidence"
+    )
     args = parser.parse_args()
     result = analyze(args.root, args.output)
+    if args.report is not None:
+        from codexa.reporting import evidence_summary, write_report
+
+        record = evidence_summary(
+            title="Preserved language baseline analysis",
+            evidence=args.output,
+            metrics=[
+                {"name": key, "value": result[key], "scope": "Original tool receipt"}
+                for key in [
+                    "generations",
+                    "severe_exact_loops",
+                    "token_limit",
+                    "reviewed_cases",
+                    "independent_contexts",
+                ]
+            ],
+            limitations=[
+                "Reviewed cases share contexts; automatic loops and stop reasons are not capability scores.",
+                "No new inference, subjective scoring or training was performed.",
+            ],
+        )
+        write_report(record, args.report)
     print(json.dumps({key: value for key, value in result.items() if key != "examples"}))
 
 

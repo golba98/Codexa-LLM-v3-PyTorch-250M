@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "report_id": "base-500m",
+  "title": "Completed 500M base run",
+  "purpose": "Record the completed native checkpoint and measured training scope.",
+  "date": "2026-11-04",
+  "run_id": "20261103-500m-233201",
+  "model_version": "native-v1 500M; parent 54fca007f272fb37",
+  "dataset_version": "Frozen 884.18M-position training corpus; native BPE 16,384",
+  "status": "PASS",
+  "summary": [
+    "The authorized fresh-from-random-initialization run completed its rounded token budget. This is checkpoint and run-completion evidence, not a language-competence certificate."
+  ],
+  "metrics": [
+    {
+      "name": "Parameters",
+      "value": "248,687,488",
+      "scope": "Recorded measurement"
+    },
+    {
+      "name": "Targets / updates",
+      "value": "500,006,912 / 15,259",
+      "scope": "Recorded measurement"
+    },
+    {
+      "name": "Final fixed-slice loss",
+      "value": "3.005710",
+      "scope": "65,536 validation targets"
+    },
+    {
+      "name": "Full-window validation loss / perplexity",
+      "value": "3.048003 / 21.073212",
+      "scope": "606,208 validation targets; test split not evaluated"
+    },
+    {
+      "name": "End-to-end tokens/s",
+      "value": "23,054.90",
+      "scope": "21,687.67s including loading, replay, validation and checkpoints"
+    },
+    {
+      "name": "Optimizer tokens/s",
+      "value": "24,023.45",
+      "scope": "After 2,000-update warmup"
+    },
+    {
+      "name": "Allocated / reserved GiB",
+      "value": "7.0171 / 7.1582",
+      "scope": "Observed allocator peaks; excludes desktop/driver"
+    }
+  ],
+  "methodology": [
+    "RTX 4080, BF16 autocast, FP32 loss; context 2,048, microbatch 1, accumulation 16, seed 42.",
+    "Independent CPU reload and forward-only CUDA validation replay checked the final native-v1 state."
+  ],
+  "results": [
+    "Final checkpoint SHA256: 54fca007f272fb3784c759d18db44912091227aedc233b62c9731514b1835c73.",
+    "All 15,259 updates appear once; recorded losses and gradients remained finite."
+  ],
+  "limitations": [
+    "Frozen-corpus loss does not establish broad language, mathematics or long-context competence.",
+    "The completed schedule cannot be silently extended through exact resume."
+  ],
+  "evidence": [
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/TRAINING.md",
+      "sha256": "98eaf69d31946d518d2facdb52db181ea07df299d5a81f24210b1c55e05731b9"
+    },
+    {
+      "label": "Preserved final checkpoint",
+      "location": "external:pretraining/20261103-500m-233201/final/checkpoint.pt",
+      "sha256": "54fca007f272fb3784c759d18db44912091227aedc233b62c9731514b1835c73"
+    }
+  ],
+  "next_actions": [
+    "Preserve final and best checkpoints, optimizer/RNG state and tokenizer.",
+    "Use paired protected evaluations for any separately launched continuation."
+  ]
+}

@@ -17,8 +17,8 @@ from codexa.data.language_protocol import (
 )
 from codexa.data.production import digest
 from codexa.data.quality_protocol import CHECKS
-from scripts.combine_quality_reviews import combined
-from scripts.review_continuation_corpus import adjudicate as dispatch
+from scripts.datasets.combine_quality_reviews import combined
+from scripts.datasets.review_continuation_corpus import adjudicate as dispatch
 
 
 def packet():
@@ -120,7 +120,7 @@ def test_language_authorization_binds_sources_budget_and_spec(tmp_path):
 def test_development_excerpt_excludes_full_origin_identity(tmp_path):
     import sqlite3
 
-    from scripts.review_continuation_corpus import development_exclusions
+    from scripts.datasets.review_continuation_corpus import development_exclusions
 
     profiles = tmp_path / "reports/profiles"
     profiles.mkdir(parents=True)

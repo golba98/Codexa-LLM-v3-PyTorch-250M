@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "report_id": "language-baseline",
+  "title": "500M language baseline limitations",
+  "purpose": "Separate observed generation failures from corpus and engineering approvals.",
+  "date": "2026-11-10",
+  "run_id": "research-status-2026-11-10",
+  "model_version": "native-v1 500M; parent 54fca007f272fb37",
+  "dataset_version": "Protected original language-v1 fixtures",
+  "status": "FAIL",
+  "summary": [
+    "The preserved checkpoint does not demonstrate reliable conversational generation in the assessed panel."
+  ],
+  "metrics": [
+    {
+      "name": "Generated / reviewed outputs",
+      "value": "400 / 100",
+      "scope": "Recorded measurement"
+    },
+    {
+      "name": "Independent reviewed contexts",
+      "value": "20",
+      "scope": "Recorded measurement"
+    },
+    {
+      "name": "Exact-loop flags",
+      "value": "276 / 400",
+      "scope": "Automatic exact-loop detector"
+    },
+    {
+      "name": "Token-limit stops",
+      "value": "399 / 400",
+      "scope": "Stopping outcome; not alone a quality failure"
+    },
+    {
+      "name": "Fully grammatical reviewed outputs",
+      "value": "7 / 100",
+      "scope": "87 additionally partially satisfy grammar"
+    },
+    {
+      "name": "Reviewed coherence failures",
+      "value": "100 / 100",
+      "scope": "Recorded independent assessment"
+    }
+  ],
+  "methodology": [
+    "Reuse the preserved 400 generations and checkpoint-blinded independent judgments; no new scoring or inference.",
+    "Report automatic stopping/repetition and subjective rubric dimensions separately."
+  ],
+  "results": [
+    "Locally grammatical sentences and partial relevance occur, but sustained coherent complete responses were not demonstrated."
+  ],
+  "limitations": [
+    "Only 20 contexts support the reviewed panel; 300 outputs have automatic metrics only.",
+    "This panel cannot causally separate comprehension from free-running generation failure."
+  ],
+  "evidence": [
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/TRAINING.md",
+      "sha256": "98eaf69d31946d518d2facdb52db181ea07df299d5a81f24210b1c55e05731b9"
+    },
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/CODEXA_V3_DIAGNOSTIC_REPORT.md",
+      "sha256": "62fe4f7e8e402ecebbf8a6607eb15a8620f6b597138c037258533361e4dac8dd"
+    }
+  ],
+  "next_actions": [
+    "Keep SFT deferred until the separately specified base-language gate passes.",
+    "After a future continuation, compare identical protected prompts and settings with blinded scoring."
+  ]
+}

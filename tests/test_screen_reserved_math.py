@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 spec = importlib.util.spec_from_file_location(
-    "screen_reserved_math", Path(__file__).parents[1] / "scripts" / "screen_reserved_math.py"
+    "screen_reserved_math",
+    Path(__file__).parents[1] / "scripts" / "datasets" / "mathematics" / "screen_reserved_math.py",
 )
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

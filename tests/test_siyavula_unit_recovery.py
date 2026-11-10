@@ -4,7 +4,9 @@ import importlib.util
 import zipfile
 from pathlib import Path
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "recover_siyavula_units.py"
+SCRIPT = (
+    Path(__file__).parents[1] / "scripts" / "datasets" / "mathematics" / "recover_siyavula_units.py"
+)
 spec = importlib.util.spec_from_file_location("recover_siyavula_units", SCRIPT)
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

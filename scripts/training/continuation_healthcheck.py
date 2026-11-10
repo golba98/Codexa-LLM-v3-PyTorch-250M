@@ -18,7 +18,7 @@ from codexa.data.production import atomic, digest, verify
 from codexa.data.quality_protocol import VERSION as QUALITY_VERSION
 from codexa.data.quality_protocol import validate_specification
 from codexa.data.v2_storage import GIB, VOLUME_UUID, Storage
-from scripts.review_continuation_corpus import adjudicate
+from scripts.datasets.review_continuation_corpus import adjudicate
 
 PARENT = Path("/mnt/codexa/pytorch/codexa-v3/pretraining/20261103-500m-233201/final/checkpoint.pt")
 PARENT_SHA = "54fca007f272fb3784c759d18db44912091227aedc233b62c9731514b1835c73"
@@ -71,8 +71,8 @@ def language_quality_gate(
     from codexa.data.language_protocol import validate_authorization
     from codexa.data.language_protocol import validate_specification as validate_language
     from codexa.repository import source_identity
-    from scripts.combine_quality_reviews import verify_reviewers
-    from scripts.verify_review_packet import review_directories
+    from scripts.datasets.combine_quality_reviews import verify_reviewers
+    from scripts.datasets.verify_review_packet import review_directories
 
     validate_language(protocol)
     authorization = Path(protocol["authorization_path"])
@@ -85,7 +85,7 @@ def language_quality_gate(
     if set(protocol["sources"]) != set(manifest["source_tokens"]):
         raise ValueError("Language source panels differ from the actual corpus")
     independent = json.loads((data / "independent-verification.json").read_text())
-    verifier_path = Path(__file__).resolve().parents[1] / "codexa/data/language.py"
+    verifier_path = Path(__file__).resolve().parents[2] / "codexa/data/language.py"
     if (
         independent.get("status") != "passed"
         or independent.get("manifest_sha256") != manifest_sha
@@ -144,7 +144,7 @@ def language_quality_gate(
             for p in review_directories(review)
         ]
         or text_proof.get("verifier_sha256")
-        != digest(Path(__file__).with_name("verify_review_packet.py"))
+        != digest(Path(__file__).parents[1] / "datasets/verify_review_packet.py")
     ):
         raise ValueError("Blinded language document/token proof is missing or stale")
 
@@ -154,7 +154,7 @@ def language_freshness_gate(
 ) -> None:
     """Recheck the frozen eligibility evidence and every registered inspection packet."""
     from codexa.data.language_protocol import validate_authorization
-    from scripts.review_continuation_corpus import require_known_census_exclusions
+    from scripts.datasets.review_continuation_corpus import require_known_census_exclusions
 
     record = validate_authorization(Path(protocol["authorization_path"]), protocol)
     supplied: dict[str, list[Path]] = {}
@@ -268,7 +268,7 @@ def legacy_quality_gate(data: Path, review: Path, manifest: dict[str, Any]) -> N
         raise ValueError("Mandatory complete quality review has not passed")
     if protocol["manifest_sha256"] != digest(data / "manifest.json"):
         raise ValueError("Quality review belongs to another dataset")
-    from scripts.combine_quality_reviews import verify_reviewers
+    from scripts.datasets.combine_quality_reviews import verify_reviewers
 
     verify_reviewers(review)
     extended = review / "extended"
@@ -320,7 +320,7 @@ def legacy_quality_gate(data: Path, review: Path, manifest: dict[str, Any]) -> N
             for p in (review, extended)
         ]
         or text_proof.get("verifier_sha256")
-        != digest(Path(__file__).with_name("verify_review_packet.py"))
+        != digest(Path(__file__).parents[1] / "datasets/verify_review_packet.py")
     ):
         raise ValueError("Blinded document/token identity proof is missing or stale")
 
@@ -533,7 +533,15 @@ def launch(
     }
     atomic(run / "control.json", record)
     command = shlex.join(
-        [sys.executable, "-B", str(Path(__file__).resolve()), "worker", "--run", str(run)]
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "scripts.training.continuation_healthcheck",
+            "worker",
+            "--run",
+            str(run),
+        ]
     )
     shell = (
         command
@@ -602,7 +610,7 @@ def isolated_preflight(root: Path, data: Path, bundle: Path, review: Path) -> di
     # normal autograd and optimizer entry points.
     code = (
         "import json,sys; from pathlib import Path; "
-        "from scripts.continuation_healthcheck import preflight; "
+        "from scripts.training.continuation_healthcheck import preflight; "
         "print(json.dumps(preflight(*(Path(p) for p in sys.argv[1:]),require_smoke=False)))"
     )
     result = subprocess.run(
@@ -846,7 +854,15 @@ def queued_postrun(run: Path, record: dict[str, Any]) -> None:
         return
     print("Training complete; starting the queued read-only baseline comparison.", flush=True)
     subprocess.run(
-        [sys.executable, "-B", str(Path(__file__).resolve()), "postrun", "--run", str(run)],
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "scripts.training.continuation_healthcheck",
+            "postrun",
+            "--run",
+            str(run),
+        ],
         check=True,
         env=os.environ | {"CODEXA_NO_TRAINING": "1"},
     )
@@ -1112,11 +1128,18 @@ def main() -> None:
     p.add_argument("--review", type=Path)
     p.add_argument("--run", type=Path)
     p.add_argument(
+        "--report",
+        type=Path,
+        help="New human preflight summary; original JSON is retained beside it",
+    )
+    p.add_argument(
         "--defer-postrun",
         action="store_true",
         help="Finish training and await user notification before read-only evaluation",
     )
     a = p.parse_args()
+    if a.report is not None and a.action != "preflight":
+        p.error("--report is supported only for read-only preflight")
     if a.action in ("worker", "postrun"):
         if a.run is None:
             p.error("--run required")
@@ -1129,7 +1152,29 @@ def main() -> None:
         elif a.action == "smoke":
             smoke(a.root, a.data, a.bundle, a.review)
         else:
-            print(json.dumps(preflight(a.root, a.data, a.bundle, a.review), indent=2))
+            result = preflight(a.root, a.data, a.bundle, a.review)
+            if a.report is not None:
+                from codexa.reporting import evidence_summary, write_report
+
+                evidence = a.report.with_suffix(".json")
+                evidence.parent.mkdir(parents=True, exist_ok=True)
+                with evidence.open("x") as stream:
+                    json.dump(result, stream, indent=2)
+                    stream.write("\n")
+                record = evidence_summary(
+                    title="Historical continuation preflight",
+                    evidence=evidence,
+                    metrics=[
+                        {"name": key, "value": result[key], "scope": "Verified preflight receipt"}
+                        for key in ("additional_targets", "optimizer_updates", "free_bytes")
+                    ],
+                    limitations=[
+                        "This legacy tool covers historical array-based phases, not the 1B streaming launch.",
+                        "Preflight reporting does not launch a trainer or confer new authorization.",
+                    ],
+                )
+                write_report(record, a.report)
+            print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

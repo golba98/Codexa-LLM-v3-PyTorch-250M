@@ -65,9 +65,28 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--report", type=Path, help="Write a new human summary beside retained JSON evidence"
+    )
     args = parser.parse_args()
     result = inventory(args.root)
     atomic(args.output, result)
+    if args.report is not None:
+        from codexa.reporting import evidence_summary, write_report
+
+        record = evidence_summary(
+            title="Local storage inventory",
+            evidence=args.output,
+            metrics=[
+                {"name": key, "value": result[key], "scope": "Original tool receipt"}
+                for key in ["root_allocated_bytes", "free_bytes", "symlink_files_skipped"]
+            ],
+            limitations=[
+                "This scan describes its capture time and can observe concurrent writes.",
+                "No source file is deleted, moved or modified by inventory.",
+            ],
+        )
+        write_report(record, args.report)
     print(json.dumps(result, indent=2))
 
 

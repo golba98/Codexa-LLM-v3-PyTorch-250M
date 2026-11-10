@@ -15,8 +15,8 @@ from codexa.data.language_protocol import (
     specification_hash,
 )
 from codexa.data.production import digest
-from scripts.continuation_healthcheck import language_freshness_gate, language_quality_gate
-from scripts.verify_review_packet import review_directories
+from scripts.datasets.verify_review_packet import review_directories
+from scripts.training.continuation_healthcheck import language_freshness_gate, language_quality_gate
 
 
 def write(path: Path, value):
@@ -132,7 +132,7 @@ def test_language_manifest_cannot_relabel_failed_legacy_protocol(tmp_path):
 
 def test_language_baseline_requires_every_preserved_generated_response(tmp_path, monkeypatch):
     from codexa.evaluation.language import SETTINGS, freeze, load_fixtures
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     monkeypatch.setattr(health, "language_baseline_review_gate", lambda root: None)
 
@@ -182,7 +182,7 @@ def test_language_baseline_requires_every_preserved_generated_response(tmp_path,
 
 
 def test_baseline_cannot_train_without_independent_response_review(tmp_path):
-    from scripts.continuation_healthcheck import language_baseline_review_gate
+    from scripts.training.continuation_healthcheck import language_baseline_review_gate
 
     with pytest.raises(FileNotFoundError):
         language_baseline_review_gate(tmp_path)
@@ -191,7 +191,7 @@ def test_baseline_cannot_train_without_independent_response_review(tmp_path):
 @pytest.mark.parametrize("changed", ["fixtures", "input"])
 def test_baseline_review_must_bind_current_fixtures_and_output(tmp_path, changed):
     from codexa.evaluation.language import freeze, load_fixtures
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     fixtures = tmp_path / "benchmarks/language-v1"
     freeze(fixtures)
@@ -238,7 +238,7 @@ def test_baseline_review_must_bind_current_fixtures_and_output(tmp_path, changed
 def test_native_window_verification_detects_rehashed_rendering_tampering(tmp_path, monkeypatch):
     import numpy as np
 
-    from scripts import verify_review_packet as packet
+    from scripts.datasets import verify_review_packet as packet
 
     snapshot, review = tmp_path / "snapshot", tmp_path / "review"
     snapshot.mkdir()
@@ -310,7 +310,7 @@ def test_successor_review_directory_still_requires_bound_authorization(tmp_path,
 
 @pytest.mark.parametrize("version", [V2_VERSION, V3_VERSION, V4_VERSION])
 def test_successor_readiness_dispatch_does_not_fall_back_to_legacy(tmp_path, monkeypatch, version):
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     protocol, _ = authorization(tmp_path, version)
     review = tmp_path / "reviews" / "new"
@@ -328,7 +328,7 @@ def test_successor_readiness_dispatch_does_not_fall_back_to_legacy(tmp_path, mon
 
 @pytest.mark.parametrize("version", [V2_VERSION, V3_VERSION, V4_VERSION])
 def test_successor_postrun_uses_language_comparison(tmp_path, monkeypatch, version):
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     record = {"checks": {"quality_protocol": version}}
     write(tmp_path / "control.json", record)
@@ -343,7 +343,7 @@ def test_successor_postrun_uses_language_comparison(tmp_path, monkeypatch, versi
     [(50_000_000, (1526, 550006912, 24415)), (100_000_000, (3052, 600006912, 48829))],
 )
 def test_exact_authorized_budget_accounting(budget, counters):
-    from scripts.continuation_healthcheck import expected_accounting
+    from scripts.training.continuation_healthcheck import expected_accounting
 
     assert expected_accounting(budget) == counters
     updates, _, microsteps = counters
@@ -353,7 +353,7 @@ def test_exact_authorized_budget_accounting(budget, counters):
 
 
 def test_run_budget_rejects_unscoped_or_arbitrary_extensions():
-    from scripts.continuation_healthcheck import run_budget
+    from scripts.training.continuation_healthcheck import run_budget
 
     assert run_budget({"checks": {}}) == 50_000_000
     assert (
@@ -376,7 +376,7 @@ def test_preflight_requires_bundle_budget_to_match_bound_authorization(
     from types import SimpleNamespace
 
     from codexa import continuation, repository
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     protocol, auth_path = authorization(tmp_path, V4_VERSION)
     if budget == 100_000_000:
@@ -425,7 +425,7 @@ def test_preflight_requires_bundle_budget_to_match_bound_authorization(
 
 
 def test_deferred_postrun_does_not_launch_evaluation(tmp_path, monkeypatch):
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     monkeypatch.setattr(
         health.subprocess, "run", lambda *args, **kwargs: pytest.fail("Unexpected evaluation")
@@ -438,7 +438,7 @@ def test_deferred_postrun_does_not_launch_evaluation(tmp_path, monkeypatch):
 
 
 def test_historical_postrun_still_launches_read_only_evaluation(tmp_path, monkeypatch):
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     calls = []
     monkeypatch.setattr(
@@ -459,7 +459,7 @@ def test_launch_persists_authorized_budget_and_explicit_evaluation_deferral(
 ):
     from types import SimpleNamespace
 
-    from scripts import continuation_healthcheck as health
+    from scripts.training import continuation_healthcheck as health
 
     parent = tmp_path / "pretraining/parent/final/checkpoint.pt"
     parent.parents[2].mkdir()

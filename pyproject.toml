@@ -7,7 +7,7 @@ version = "0.1.0"
 description = "From-scratch PyTorch language model research infrastructure"
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "codexa/training/terminal/V1_LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md", "codexa/training/terminal/V1_LICENSE", "codexa/evaluation/assets/LICENSE"]
 requires-python = ">=3.11,<3.14"
 dependencies = ["torch>=2.9,<3", "numpy", "tokenizers>=0.22,<1", "PyYAML", "sympy"]
 [project.optional-dependencies]
@@ -33,3 +33,5 @@ ignore_missing_imports = true
 
 [tool.setuptools.package-data]
 "codexa.dashboard" = ["static/*"]
+
+"codexa.evaluation" = ["assets/*.txt", "assets/*.tsv", "assets/LICENSE"]

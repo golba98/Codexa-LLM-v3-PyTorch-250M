@@ -8,7 +8,11 @@ import pytest
 
 spec = importlib.util.spec_from_file_location(
     "foundation_guide_concepts",
-    Path(__file__).parents[1] / "scripts" / "extract_bala_guide_concepts.py",
+    Path(__file__).parents[1]
+    / "scripts"
+    / "datasets"
+    / "mathematics"
+    / "extract_bala_guide_concepts.py",
 )
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

@@ -28,7 +28,13 @@ def test_mapping_holds_excluded_and_unknown(tmp_path: Path) -> None:
         )
     )
     output = tmp_path / "output"
-    script = Path(__file__).parents[1] / "scripts" / "map_recovery_families.py"
+    script = (
+        Path(__file__).parents[1]
+        / "scripts"
+        / "datasets"
+        / "mathematics"
+        / "map_recovery_families.py"
+    )
     subprocess.run(
         [
             sys.executable,

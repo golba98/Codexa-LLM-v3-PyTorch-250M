@@ -10,7 +10,7 @@ import numpy as np
 from codexa.data.production import atomic, digest, verify
 from codexa.data.v2_finalize import token_documents
 from codexa.data.v2_storage import Storage
-from scripts.audit_v2_snapshot import audit
+from scripts.datasets.audit_v2_snapshot import audit
 
 
 def check(root: Path, parent: Path, snapshot: Path) -> dict:

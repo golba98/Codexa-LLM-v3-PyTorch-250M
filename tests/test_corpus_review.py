@@ -2,14 +2,14 @@
 
 import pytest
 
-from scripts.review_continuation_corpus import adjudicate
+from scripts.datasets.review_continuation_corpus import adjudicate
 
 
 def test_strict_review_refuses_preinspected_semantic_census(tmp_path, monkeypatch):
     import json
 
     from codexa.data.v2_storage import Storage
-    from scripts.review_continuation_corpus import prepare
+    from scripts.datasets.review_continuation_corpus import prepare
 
     snapshot = tmp_path / "snapshot"
     snapshot.mkdir()
@@ -30,7 +30,7 @@ def test_census_exclusion_requires_intact_complete_packet(tmp_path):
     import json
 
     from codexa.data.production import digest
-    from scripts.review_continuation_corpus import inspection_exclusions
+    from scripts.datasets.review_continuation_corpus import inspection_exclusions
 
     (tmp_path / "mapping.jsonl").write_text(
         json.dumps({"id": "T00001", "document_id": "doc-1"}) + "\n"
@@ -51,7 +51,7 @@ def test_census_exclusion_requires_intact_complete_packet(tmp_path):
 
 
 def test_review_window_excludes_any_inspected_document_overlap():
-    from scripts.review_continuation_corpus import overlaps_inspected_window
+    from scripts.datasets.review_continuation_corpus import overlaps_inspected_window
 
     intervals = [(5, 7), (15, 20)]
     starts = [5, 15]
@@ -64,7 +64,7 @@ def test_review_window_excludes_any_inspected_document_overlap():
 
 
 def test_strict_review_requires_all_known_curation_packets(tmp_path):
-    from scripts.review_continuation_corpus import require_known_census_exclusions
+    from scripts.datasets.review_continuation_corpus import require_known_census_exclusions
 
     packet = tmp_path / "semantic-admission" / "review"
     packet.mkdir(parents=True)
@@ -107,7 +107,7 @@ def test_new_protocol_refuses_partial_finalization(tmp_path, monkeypatch):
 
     from codexa.data.production import digest
     from codexa.data.v2_storage import Storage
-    from scripts.review_continuation_corpus import main
+    from scripts.datasets.review_continuation_corpus import main
 
     monkeypatch.setattr(Storage, "load", lambda *a: Storage(tmp_path))
     monkeypatch.setattr(Storage, "check", lambda *a: None)

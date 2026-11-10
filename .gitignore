@@ -84,3 +84,15 @@ Thumbs.db
 **/tokenizer.json
 **/vocab.json
 **/merges.txt
+# Local databases, downloads and transient measurement payloads
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.log
+*.tmp
+*.part
+*.npz
+*.npy
+*.pdf
+*.epub

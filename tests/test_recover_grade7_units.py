@@ -3,7 +3,9 @@
 import importlib.util
 from pathlib import Path
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "recover_grade7_units.py"
+SCRIPT = (
+    Path(__file__).parents[1] / "scripts" / "datasets" / "mathematics" / "recover_grade7_units.py"
+)
 spec = importlib.util.spec_from_file_location("middle_grade7_recovery", SCRIPT)
 assert spec and spec.loader
 module = importlib.util.module_from_spec(spec)

@@ -11,7 +11,7 @@ import pytest
 from codexa.data.production import atomic, digest
 from codexa.data.remediate import prove_narrowing, rebuild, rejection
 from codexa.data.v2_storage import Storage
-from scripts.verify_remediated_snapshot import check
+from scripts.datasets.verify_remediated_snapshot import check
 
 
 @pytest.mark.parametrize(

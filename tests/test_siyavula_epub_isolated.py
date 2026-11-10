@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "extract_siyavula_epub.py"
+SCRIPT = (
+    Path(__file__).parents[1] / "scripts" / "datasets" / "mathematics" / "extract_siyavula_epub.py"
+)
 spec = importlib.util.spec_from_file_location("extract_siyavula_epub", SCRIPT)
 assert spec is not None and spec.loader is not None
 module = importlib.util.module_from_spec(spec)

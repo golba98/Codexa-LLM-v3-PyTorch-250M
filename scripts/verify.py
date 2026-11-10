@@ -24,6 +24,7 @@ def main() -> None:
         [sys.executable, "-m", "ruff", "check", "."],
         [sys.executable, "-m", "ruff", "format", "--check", "."],
         [sys.executable, "-m", "mypy", "codexa"],
+        [sys.executable, "-m", "scripts.maintenance.render_reports", "--check"],
         [sys.executable, "-m", "pytest", "-q"],
     ]
     if args.forward_only:
@@ -32,6 +33,7 @@ def main() -> None:
         os.environ["CODEXA_NO_TRAINING"] = "1"
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         nodes = [
+            "tests/test_reporting.py",
             "tests/test_streaming.py",
             "tests/test_language_protocol.py",
             "tests/test_language_data.py",
@@ -57,8 +59,8 @@ def main() -> None:
             "tests/test_pipeline.py::test_generation",
             "tests/test_pipeline.py::test_math",
             "tests/test_pipeline.py::test_sampler",
-            "tests/test_m25.py::test_cache_and_positions",
-            "tests/test_m25.py::test_sampled_parity_and_cache_owner",
+            "tests/test_context_dashboard.py::test_cache_and_positions",
+            "tests/test_context_dashboard.py::test_sampled_parity_and_cache_owner",
             "tests/test_data.py::test_curation_resume_and_integrity",
             "tests/test_data.py::test_duplicate_holdout",
             "tests/test_data.py::test_curation_io_tuning_preserves_resume",

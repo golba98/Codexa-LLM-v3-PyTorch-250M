@@ -9,7 +9,7 @@ import pytest
 pytest.importorskip("bs4")
 from bs4 import BeautifulSoup
 
-from scripts.acquire_siyavula_senior_html import parse_online_page
+from scripts.datasets.mathematics.acquire_siyavula_senior_html import parse_online_page
 
 
 class FakeLegacy:

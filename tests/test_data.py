@@ -272,7 +272,7 @@ def test_streaming_memory_bound(tmp_path):
         subprocess.run(
             [
                 sys.executable,
-                "scripts/check_data_memory.py",
+                "scripts/benchmarks/check_data_memory.py",
                 "--documents",
                 str(count),
                 "--output",

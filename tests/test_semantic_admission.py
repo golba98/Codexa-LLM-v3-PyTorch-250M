@@ -13,8 +13,8 @@ from codexa.data.quality_protocol import CHECKS
 from codexa.data.remediate import rebuild
 from codexa.data.semantic import assessed, cleared, load_admission
 from codexa.data.v2_storage import Storage
-from scripts.semantic_admission import finalize, merge_shards
-from scripts.verify_remediated_snapshot import check
+from scripts.datasets.semantic_admission import finalize, merge_shards
+from scripts.datasets.verify_remediated_snapshot import check
 
 
 def rating(ident="S1", judge="a"):
@@ -84,7 +84,7 @@ def refresh_census_fixture(path):
 
 
 def test_extension_is_seeded_stratified_and_excludes_census_passages(tmp_path, monkeypatch):
-    from scripts.semantic_admission import prepare
+    from scripts.datasets.semantic_admission import prepare
 
     monkeypatch.setattr(Storage, "check", lambda *a, **kw: None)
     Storage(tmp_path).initialize()
@@ -92,7 +92,7 @@ def test_extension_is_seeded_stratified_and_excludes_census_passages(tmp_path, m
     parent.mkdir(parents=True)
     manifest = {"splits": {s: [] for s in ("train", "val", "test")}, "tokenizer_hash": "frozen"}
     atomic(parent / "manifest.json", manifest)
-    monkeypatch.setattr("scripts.semantic_admission.verify", lambda _: manifest)
+    monkeypatch.setattr("scripts.datasets.semantic_admission.verify", lambda _: manifest)
     records, texts = [], {}
     for source, train_count in (("fineweb-edu", 6), ("finemath-4plus", 3)):
         for split in ("train", "val", "test"):
@@ -174,7 +174,7 @@ def test_extension_is_seeded_stratified_and_excludes_census_passages(tmp_path, m
 def test_union_preserves_disjoint_judgments_and_primary_evidence_requirements(
     tmp_path, monkeypatch
 ):
-    from scripts.semantic_evidence import union
+    from scripts.datasets.semantic_evidence import union
 
     monkeypatch.setattr(Storage, "check", lambda *a, **kw: None)
     Storage(tmp_path).initialize()
@@ -568,7 +568,7 @@ def test_semantic_rebuild_quarantines_unreviewed_records_and_preserves_bytes(tmp
 
 
 def test_evidence_resolution_preserves_defects_and_requires_new_proof(tmp_path, monkeypatch):
-    from scripts.semantic_evidence import compose, prepare
+    from scripts.datasets.semantic_evidence import compose, prepare
 
     monkeypatch.setattr(Storage, "check", lambda *a, **kw: None)
     Storage(tmp_path).initialize()

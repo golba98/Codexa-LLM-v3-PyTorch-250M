@@ -1,4 +1,4 @@
-from scripts.math_completion_workers.foundation import candidates
+from scripts.datasets.mathematics.math_completion_workers.foundation import candidates
 
 
 def base(text):

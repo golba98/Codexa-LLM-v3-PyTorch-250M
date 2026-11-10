@@ -2,7 +2,7 @@ import hashlib
 import zipfile
 from pathlib import Path
 
-from scripts.extract_siyavula_learning_units import extract_member
+from scripts.datasets.mathematics.extract_siyavula_learning_units import extract_member
 
 
 def test_pairing_context_assets_and_empty_solutions(tmp_path: Path) -> None:

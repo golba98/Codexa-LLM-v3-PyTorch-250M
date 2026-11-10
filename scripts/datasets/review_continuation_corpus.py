@@ -531,7 +531,7 @@ def main() -> None:
                 )
             else:
                 validate_specification(protocol)
-            from scripts.combine_quality_reviews import verify_reviewers
+            from scripts.datasets.combine_quality_reviews import verify_reviewers
 
             verify_reviewers(args.output)
         result = adjudicate(mapping, ratings, protocol)

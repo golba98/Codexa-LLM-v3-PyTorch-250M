@@ -248,7 +248,7 @@ def freeze(root: Path) -> dict[str, Any]:
             if digest(path / name) != sha:
                 raise ValueError("Frozen evaluation changed")
         return manifest
-    scenario_path = Path(__file__).resolve().parents[2] / "tests/fixtures/language_scenarios.txt"
+    scenario_path = Path(__file__).with_name("assets") / "language_scenarios.txt"
     vocab_path = scenario_path.with_name("vocabulary.tsv")
     scenes = list(dict.fromkeys(scenario_path.read_text().splitlines()))
     scenes.sort(key=lambda s: identity("42:" + s))

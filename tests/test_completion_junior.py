@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.math_completion_workers import junior_2011 as module
+from scripts.datasets.mathematics.math_completion_workers import junior_2011 as module
 
 
 class RecoveryTests(unittest.TestCase):
