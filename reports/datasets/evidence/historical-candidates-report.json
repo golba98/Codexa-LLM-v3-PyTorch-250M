@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "report_id": "historical-candidates",
+  "title": "Historical dataset-v2 decisions",
+  "purpose": "Retain failed corpus decisions without presenting them as current Wikimedia readiness.",
+  "date": "2026-11-10",
+  "run_id": "research-status-2026-11-10",
+  "model_version": "native-v1 500M; parent 54fca007f272fb37",
+  "dataset_version": "dataset-v2 remediated-v4c-20261106 and earlier candidates",
+  "status": "FAIL",
+  "summary": [
+    "Historical audited token snapshots failed their quality gates. These results are preserved and do not overturn the later separately reviewed Wikimedia source decision."
+  ],
+  "metrics": [
+    {
+      "name": "Retained v4c positions",
+      "value": "2,052,040,276",
+      "scope": "Historical independently audited snapshot"
+    },
+    {
+      "name": "FineMath severe defects",
+      "value": "11 / 40",
+      "scope": "Historical primary panel"
+    },
+    {
+      "name": "FineWeb-Edu usable records",
+      "value": "21 / 40",
+      "scope": "Historical primary panel"
+    },
+    {
+      "name": "Primary/extended records",
+      "value": "900",
+      "scope": "Two independent ratings each"
+    }
+  ],
+  "methodology": [
+    "Keep native-token audits, split/protection checks and quality decisions separate.",
+    "Full original source-specific results and remediation chronology are retained in the archive."
+  ],
+  "results": [
+    "Both extended panels also failed. A separate semantic-admission census is preprocessing evidence, not a fresh passing approval panel."
+  ],
+  "limitations": [
+    "Historical snapshot availability differs after previously authorized storage cleanup; retained manifests and hashes describe their capture time.",
+    "Token count and completed assessments do not confer admission or training authorization."
+  ],
+  "evidence": [
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/CODEXA_V3_DATASET_V2.md",
+      "sha256": "a834404a13a8dae82f58fe015d2899277925b1b7f80bb2426c4ebb9f1cab3901"
+    },
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/CODEXA_V3_TRAINING_READINESS.md",
+      "sha256": "5ca35072c8bf7407345ea7e983e04ed7373faec9aa23bdeeb2b3005984e2ec0e"
+    },
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!reports/codexa-v3-comprehensive-status-audit.md",
+      "sha256": "d8b07fd7f068ce5b1716c452bcec64ec43bab41b7bdcdf70eaa9dfcb07de16bc"
+    }
+  ],
+  "next_actions": [
+    "Retain original decisions and provenance.",
+    "Use the current source readiness report for the selected language continuation; do not rebuild these candidates during cleanup."
+  ]
+}

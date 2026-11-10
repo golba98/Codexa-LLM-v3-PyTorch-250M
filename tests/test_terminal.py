@@ -245,7 +245,7 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode, monkeypatch):
     result = subprocess.run(
         [
             sys.executable,
-            "scripts/terminal_acceptance.py",
+            "scripts/training/terminal_acceptance.py",
             "--data",
             data,
             "--tokenizer",
@@ -276,6 +276,8 @@ def test_cli_pty_acceptance(prepared, tmp_path, size, mode, monkeypatch):
 
 def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
     import pty
+    import select
+    import threading
 
     from codexa.training import terminal
 
@@ -284,6 +286,18 @@ def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
     master, slave = pty.openpty()
     stream = os.fdopen(os.dup(slave), "w")
     view = TerminalDashboard(stream)
+    captured = bytearray()
+    stop = threading.Event()
+
+    def drain():
+        # Model a live terminal peer: a full frame may exceed the PTY buffer.
+        while not stop.is_set():
+            ready, _, _ = select.select([master], [], [], 0.05)
+            if ready:
+                captured.extend(os.read(master, 65536))
+
+    reader = threading.Thread(target=drain)
+    reader.start()
 
     class Kill:
         def on_event(self, e):
@@ -303,8 +317,14 @@ def test_dead_renderer_training_continues(prepared, tmp_path, monkeypatch):
         t.train(until=4, ui="terminal", handle_signals=False)
         assert t.step == 4 and not view.active and (Path(out) / "latest.pt").is_file()
         assert '"event": "warning"' in (Path(out) / "events.jsonl").read_text()
-        assert b"\x1b[?25h\x1b[?1049l" in os.read(master, 4096)
+        restored = b"\x1b[?25h\x1b[?1049l"
+        deadline = time.monotonic() + 3
+        while restored not in captured and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert restored in captured
     finally:
+        stop.set()
+        reader.join(timeout=3)
         stream.close()
         os.close(master)
         os.close(slave)
@@ -316,7 +336,7 @@ def test_frame_capture_chunk_independence():
     pytest.importorskip("pyte")
     import pyte
 
-    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    capture = runpy.run_path("scripts/training/terminal_acceptance.py")["FrameCapture"]
     raw = "\x1b[?1049h\x1b[HCODEXA 0 / 200  0.0%\r\nTraining\x1b[HCODEXA 80 / 200  40.0%\r\nTraining\x1b[?1049l"
     for chunks in ([raw], list(raw)):
         screen = capture(60, 24)
@@ -340,7 +360,7 @@ def test_worker_preserves_queued_startup(monkeypatch):
 
     pytest.importorskip("rich")
     pyte = pytest.importorskip("pyte")
-    capture = runpy.run_path("scripts/terminal_acceptance.py")["FrameCapture"]
+    capture = runpy.run_path("scripts/training/terminal_acceptance.py")["FrameCapture"]
     parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 60, 0, 0))

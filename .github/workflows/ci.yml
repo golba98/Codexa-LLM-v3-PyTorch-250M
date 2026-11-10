@@ -23,7 +23,7 @@ jobs:
       - run: uv pip sync --system requirements-cpu-lock.txt
       - run: uv pip install --system --no-deps -e .
       - run: python scripts/verify.py
-      - run: sh scripts/smoke.sh
+      - run: sh scripts/training/smoke.sh
       - run: codexa release fixture --corpus examples/corpus --output outputs/exports/ci-fixture
       - run: codexa release preflight --artifact outputs/exports/ci-fixture --verification-report outputs/logs/verification.json
       - run: uv build

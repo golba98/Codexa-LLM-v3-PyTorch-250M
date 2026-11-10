@@ -1,0 +1,20 @@
+version: codexa-language-data-3
+sources:
+- adapter: codexa-pressbooks-english-1
+  bytes: 191725499
+  category: general
+  filter:
+    maximum_word_length: 64
+    minimum_words: 100
+    minimum_prose_sentences: 3
+    minimum_prose_fraction: 0.6
+    reject_instructional_scaffolding: true
+    require_terminal: true
+  license: Per-document original book licence; no aggregate grant
+  name: pressbooks-filtered
+  path: pressbooks-0000.json.gz
+  repo: common-pile/pressbooks_filtered
+  revision: 1a1d3b50d77f834370f8eb4c0d174668dd1676bb
+  sha256: dd251acfa9b535a0aadeb7f61743a61934a1783bd1bdac947d4d136781b22d22
+  target_share: 1.0
+  rights_policy: codexa-publisher-internal-research-2

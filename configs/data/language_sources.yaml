@@ -1,0 +1,39 @@
+version: codexa-language-data-1
+sources:
+  - name: wikipedia-en
+    category: general
+    local_glob: wikipedia-en--20231101.en--train-*.parquet
+    target_share: 0.60
+    filter:
+      maximum_word_length: 64
+      require_terminal: true
+      reject_bare_is_opening: true
+      reject_tables: true
+  - name: tinystories-gpt4
+    category: narrative
+    local_glob: tinystories-gpt4--TinyStoriesV2-GPT4-train.txt
+    target_share: 0.15
+    filter:
+      maximum_word_length: 64
+      require_terminal: true
+  - name: cosmopedia-educational
+    category: general
+    local_glob: cosmopedia-educational--data--openstax--train-00001-of-00002.parquet
+    target_share: 0.25
+    historical_status: rejected
+    filter:
+      maximum_word_length: 64
+      require_terminal: true
+  - name: cosmopedia-v2
+    category: general
+    repo: HuggingFaceTB/smollm-corpus
+    revision: 3ba9d605774198c5868892d7a8deda78031a781f
+    path: cosmopedia-v2/train-00000-of-00104.parquet
+    bytes: 1174424341
+    sha256: 5a25721146377d6e7f288c244e991df93e672b8cc3e535fd4aac5da4cdb1491d
+    license: ODC-By-1.0 dataset-card declaration; seed-content rights require review
+    attribution: HuggingFaceTB; synthetic generation with web seed provenance retained
+    target_share: 0.25
+    filter:
+      maximum_word_length: 64
+      require_terminal: true

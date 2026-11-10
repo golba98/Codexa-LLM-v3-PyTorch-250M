@@ -1,0 +1,10 @@
+{
+  "dataset": "common-pile/comma_v0.1_training_dataset",
+  "revision": "5afc546db324e7f39f297ba757c9a60547151e7c",
+  "shards": [
+    {
+      "path": "wikimedia/wikimedia.chunk.00.jsonl.gz",
+      "etag": "3dc06935a3a27be8ca32e957636edde3e66f42c95c40545766c93120a3364028"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 import argparse
 import json
+from collections.abc import Iterable
 from pathlib import Path
 
 from .production import atomic, curate, digest, documents, tokenize, verify
@@ -27,7 +28,11 @@ def main(argv):
     p.add_argument("--vocab-size", type=int, default=16384)
     p.add_argument("--max-bytes", type=int, default=33554432)
     a = p.parse_args(argv)
-    if a.domain == "data" and a.action == "sample":
+    if a.domain == "data" and a.action == "sample" and a.config:
+        from .sampling import sample as sample_snapshots
+
+        print(sample_snapshots(yaml.safe_load(Path(a.config).read_text()), a.output, a.max_bytes))
+    elif a.domain == "data" and a.action == "sample":
         import re
         import urllib.request
 
@@ -133,20 +138,47 @@ def main(argv):
 
         sample_hash = hashlib.sha256()
         sample_counts = [0, 0]
+        source_counts: dict[str, int] = {}
+        fitting = yaml.safe_load(Path(a.config).read_text()) if a.config else None
         if a.max_bytes <= 0:
             raise ValueError("Positive fitting budget required")
 
         def sample():
             used = 0
-            for text in documents(a.dataset):
+            rows: Iterable[tuple[str, str]]
+            if fitting:
+                import sqlite3
+
+                manifest = json.loads((Path(a.dataset) / "manifest.json").read_text())
+                if digest(Path(a.dataset) / "documents.sqlite") != manifest["database_sha256"]:
+                    raise ValueError("Curated database changed")
+                db = sqlite3.connect(
+                    f"file:{Path(a.dataset) / 'documents.sqlite'}?mode=ro", uri=True
+                )
+                rows = db.execute("SELECT source,text FROM docs WHERE split='train' ORDER BY id")
+            else:
+                db = None
+                rows = (("all", text) for text in documents(a.dataset))
+            per_source: dict[str, int] = {}
+            for source, text in rows:
                 size = len(text.encode())
                 if used + size > a.max_bytes:
+                    if fitting:
+                        continue
                     break
+                if fitting and per_source.get(source, 0) + size > fitting["source_bytes"].get(
+                    source, 0
+                ):
+                    continue
+                per_source[source] = per_source.get(source, 0) + size
+                source_counts[source] = source_counts.get(source, 0) + 1
                 used += size
                 sample_counts[0] += 1
                 sample_counts[1] += size
                 sample_hash.update(size.to_bytes(8, "little") + text.encode())
                 yield text
+            if db is not None:
+                db.close()
 
         tok = CodexaTokenizer.train(sample(), a.vocab_size)
         tok.save(a.output)
@@ -159,6 +191,7 @@ def main(argv):
                 "stage": "candidate",
                 "sample_documents": sample_counts[0],
                 "sample_bytes": sample_counts[1],
+                "source_documents": source_counts,
                 "sample_sha256": sample_hash.hexdigest(),
                 "tokenizers_version": importlib.metadata.version("tokenizers"),
                 "peak_process_rss_kib": int(

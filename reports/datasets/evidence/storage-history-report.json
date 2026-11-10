@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "report_id": "storage-history",
+  "title": "Historical storage audit",
+  "purpose": "Retain original storage findings without authorizing external cleanup.",
+  "date": "2026-11-10",
+  "run_id": "research-status-2026-11-10",
+  "model_version": "native-v1 500M; parent 54fca007f272fb37",
+  "dataset_version": "Storage audit captured 2026-11-05",
+  "status": "PASS",
+  "summary": [
+    "The original drive-wide audit is historical evidence, not a current deletion list. Repository cleanup does not remove external artifacts.",
+    "PASS denotes the completed historical audit capture, not current storage health or deletion approval."
+  ],
+  "metrics": [
+    {
+      "name": "Current external deletion authorization",
+      "value": "None",
+      "scope": "This task prohibits external storage cleanup"
+    }
+  ],
+  "methodology": [
+    "Preserve the complete original directory, hardlink, reference and capacity findings with their captured date."
+  ],
+  "results": [
+    "Original audit and subsequent historical corpus-status capture are indexed in the archive."
+  ],
+  "limitations": [
+    "Original sizes and deletion candidates may be obsolete; do not execute historical deletion suggestions."
+  ],
+  "evidence": [
+    {
+      "label": "Original historical document",
+      "location": "archive:research-2026-11-10.tar.gz!docs/CODEXA_V3_STORAGE_AUDIT.md",
+      "sha256": "479b41e06e43f6e237ecdb787eebe29d22d042b4b8ae25806306fa8a3a1cb249"
+    }
+  ],
+  "next_actions": [
+    "Keep external storage untouched. Reassess current references before any separately authorized storage task."
+  ]
+}

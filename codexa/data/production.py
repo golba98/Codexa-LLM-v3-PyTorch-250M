@@ -27,6 +27,15 @@ def atomic(path: Path, value) -> None:
         f.flush()
         os.fsync(f.fileno())
     tmp.replace(path)
+    sync_directory(path.parent)
+
+
+def sync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def records(
@@ -152,7 +161,19 @@ def shingles(text):
     }
 
 
-def curate(config: dict, output: str, resume=False, progress=None) -> Path:
+def curate(
+    config: dict,
+    output: str,
+    resume=False,
+    progress=None,
+    *,
+    commit_every: int = 100,
+    cache_mib: int = 8,
+    wal: bool = False,
+    protected_cache_entries: int = 0,
+) -> Path:
+    if commit_every <= 0 or cache_mib <= 0 or protected_cache_entries < 0:
+        raise ValueError("Positive curation transaction/cache limits required")
     config = {
         "seed": 42,
         "fractions": [0.99, 0.005, 0.005],
@@ -193,7 +214,7 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
             ).hexdigest()
             db = sqlite3.connect(root / "documents.sqlite")
             db.execute("PRAGMA synchronous=FULL")
-            db.execute("PRAGMA cache_size=-8192")
+            db.execute(f"PRAGMA cache_size={-cache_mib * 1024}")
             db.executescript(
                 "CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT); CREATE TABLE IF NOT EXISTS docs(id TEXT PRIMARY KEY,source TEXT,split TEXT,text TEXT,signature TEXT); CREATE TABLE IF NOT EXISTS bands(band TEXT,id TEXT); CREATE INDEX IF NOT EXISTS bands_key ON bands(band); CREATE TABLE IF NOT EXISTS errors(source TEXT,ordinal INT,reason TEXT,PRIMARY KEY(source,ordinal));"
             )
@@ -207,6 +228,11 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
                     raise ValueError("Curated database changed")
                 db.close()
                 return root
+            if wal:
+                db.execute("PRAGMA journal_mode=WAL")
+            # Holdout removal looks up a document's bands by id, not by band hash.
+            # Add this only to unfinished databases; completed checksums must stay immutable.
+            db.execute("CREATE INDEX IF NOT EXISTS bands_id ON bands(id)")
             db.execute("INSERT OR IGNORE INTO meta VALUES('identity',?)", (identity,))
             db.commit()
             # Declared holdouts are visited before training, so matching train documents cannot win.
@@ -258,6 +284,10 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
                         reason = "oversize"
                     elif len(text.strip()) < source.get("min_chars", config.get("min_chars", 32)):
                         reason = "short"
+                    elif config.get("reject_reserved_tokens", False) and any(
+                        token in text for token in ("<pad>", "<unk>", "<bos>", "<eos>")
+                    ):
+                        reason = "reserved_token"
                     elif "\x00" in text or "\ufffd" in text:
                         reason = "corruption"
                     elif len(text) > config.get("repetition_min_chars", 512) and len(
@@ -370,7 +400,7 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
                         ("byte:" + str(path), str(max(0, byte_position))),
                     )
                     processed += 1
-                    if ordinal % 100 == 0:
+                    if ordinal % commit_every == 0:
                         db.commit()
                         if progress:
                             progress(processed)
@@ -381,9 +411,19 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
                     db.executemany(
                         "INSERT OR IGNORE INTO protected VALUES(?)", ((v,) for v in spans(text))
                     )
+                protected_cache: set[str] | None = None
+                if protected_cache_entries:
+                    protected_cache = set()
+                    for (gram,) in db.execute("SELECT gram FROM protected"):
+                        protected_cache.add(gram)
+                        if len(protected_cache) > protected_cache_entries:
+                            protected_cache = None
+                            break
                 for docid, text in db.execute("SELECT id,text FROM docs WHERE split='train'"):
                     if any(
-                        db.execute("SELECT 1 FROM protected WHERE gram=?", (v,)).fetchone()
+                        v in protected_cache
+                        if protected_cache is not None
+                        else db.execute("SELECT 1 FROM protected WHERE gram=?", (v,)).fetchone()
                         for v in spans(text)
                     ):
                         db.execute("DELETE FROM docs WHERE id=?", (docid,))
@@ -397,6 +437,9 @@ def curate(config: dict, output: str, resume=False, progress=None) -> Path:
                 progress(processed)
             counts = dict(db.execute("SELECT split,count(*) FROM docs GROUP BY split"))
             errors = dict(db.execute("SELECT reason,count(*) FROM errors GROUP BY reason"))
+            if wal:
+                db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                db.execute("PRAGMA journal_mode=DELETE")
             db.close()
             if any(not counts.get(s) for s in ("train", "val", "test")):
                 raise ValueError("Each split needs documents; adjust source groups/fractions")
@@ -545,6 +588,10 @@ def verify(root):
         or not 260 <= m.get("vocab_size", 0) <= 65536
     ):
         raise ValueError("Invalid dataset schema")
+    if m.get("documents_sha256"):
+        listing = root / "documents.jsonl"
+        if listing.is_symlink() or digest(listing) != m["documents_sha256"]:
+            raise ValueError("Document provenance index mismatch")
     for entries in m["splits"].values():
         for entry in entries:
             name = entry["file"]
@@ -566,6 +613,21 @@ def verify(root):
                 or digest(p) != entry["sha256"]
             ):
                 raise ValueError("Shard integrity mismatch")
+            tokens = np.memmap(p, dtype="<u2", mode="r")
+            if len(tokens) == 0 or int(tokens.max()) >= m["vocab_size"]:
+                raise ValueError("Token outside declared vocabulary")
+            if entry.get("index"):
+                offsets = np.memmap(root / entry["index"], dtype="<u8", mode="r")
+                if (
+                    len(offsets) == 0
+                    or offsets[0] != 0
+                    or np.any(offsets[1:] <= offsets[:-1])
+                    or offsets[-1] >= len(tokens)
+                    or np.any(tokens[offsets] != 2)
+                    or np.any(tokens[offsets[1:] - 1] != 3)
+                    or tokens[-1] != 3
+                ):
+                    raise ValueError("Invalid document boundaries or offsets")
     return m
 
 
