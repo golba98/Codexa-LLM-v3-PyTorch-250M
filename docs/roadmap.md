@@ -2,13 +2,13 @@
 
 ## Current state
 
-The custom architecture, tokenizer, native recovery and streaming implementations exist. An internal 500,006,912-token run completed; its language generation remains weak. The selected pinned English Wikipedia source has passed the approved corpus review. The owner authorized a future 1B additional-token continuation, but cleanup execution is prohibited and the saved machine authorization still requires later finalization. See [readiness](../reports/language/continuation-readiness.md).
+The custom architecture, tokenizer, native recovery and streaming implementations exist. An internal 500,006,912-token run completed; its language generation remains weak. The selected pinned English Wikipedia source has passed the approved corpus review. The owner replaced the earlier 1B proposal with exactly 500M additional language tokens, using rolling recovery and the existing terminal viewer after mandatory preflight. See [readiness](../reports/language/continuation-readiness.md).
 
 ## Language workstream
 
-1. Complete repository cleanup, CPU verification and public review while preserving the trained baseline and all evidence.
-2. In a later launch-preparation task, finalize the bound authorization, revalidate source/rights/capacity/compute/recovery gates, and prepare a fresh native phase. No training starts from this roadmap.
-3. For the authorized continuation, retain the frozen tokenizer, architecture, protected evaluations and exact native recovery; evaluate actual saved generations against the unchanged baseline.
+1. Preserve the completed repository cleanup, trained baseline and approved source evidence.
+2. Bind the explicit 500M authorization, verify optimizer/recovery on the RTX 4080 once, and launch a fresh streaming phase with two retained full recovery points.
+3. Retain tokenizer, architecture, protected evaluations and exact recovery; stop after the fixed budget. Codex exits after confirming launch. Generation evaluation and subsequent work await the owner’s return.
 4. Before conversational SFT, satisfy the separately specified base-language gate: 100 fresh protected development prose completions, at least 80 grammatical/coherent/complete responses and at most ten severe loops. Existing assistant-task outputs are not that fresh panel.
 5. Choose a concrete SFT budget and review dialogue rights, formatting and assistant-only masking before introducing a new objective. Larger language budgets and publication require their own decisions.
 

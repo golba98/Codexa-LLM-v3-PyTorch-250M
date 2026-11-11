@@ -233,14 +233,14 @@ def specification_hash(protocol: dict[str, Any]) -> str:
 
 
 def authorized_budget(record: dict[str, Any], version: str) -> bool:
-    """The original 50M slot has only one explicitly recorded V4 budget extension."""
+    """Preserve historical slots; current Wikimedia launch is limited to exactly 500M."""
     budget = record.get("additional_target_tokens")
     if type(budget) is not int:
         return False
     if version in {V5_VERSION, V6_VERSION, V7_VERSION}:
         return (
-            budget == 1_000_000_000
-            and record.get("cumulative_target_tokens") == 1_500_006_912
+            budget == (500_000_000 if version == V7_VERSION else 1_000_000_000)
+            and record.get("cumulative_target_tokens") == 500_006_912 + budget
             and record.get("training_launch_authorized") is True
             and bool(record.get("user_decision"))
         )

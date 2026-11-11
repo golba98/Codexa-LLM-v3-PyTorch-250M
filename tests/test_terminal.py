@@ -64,6 +64,50 @@ def test_state_metrics_and_lifecycle():
     assert json.loads(json.dumps(s.snapshot()))["status"] == "interrupted"
 
 
+def test_effective_throughput_includes_loading_stalls_after_resume():
+    pytest.importorskip("rich")
+    from rich.console import Console
+
+    from codexa.training.terminal.render import frame
+
+    state = TerminalState()
+    state.update(
+        TrainingEvent(
+            1,
+            "run",
+            "session",
+            1,
+            "started",
+            700,
+            1_000_000,
+            "2026-11-11T12:00:00",
+            0.0,
+            {"metadata": {"training": {"steps": 15259}}, "resumed": True},
+        )
+    )
+    state.update(
+        TrainingEvent(
+            1,
+            "run",
+            "session",
+            2,
+            "step_completed",
+            701,
+            1_032_000,
+            "2026-11-11T12:01:40",
+            100.0,
+            {"loss": 3.0, "tokens_per_second": 16000, "seconds": 2.0},
+        )
+    )
+    output = io.StringIO()
+    Console(file=output, width=140, height=42, color_system=None).print(
+        frame(state.snapshot(), 140, 42)
+    )
+    rendered = output.getvalue()
+    assert "Update throughput" in rendered and "16,000 tok/s" in rendered
+    assert "Effective throughput" in rendered and "320 tok/s" in rendered
+
+
 def test_unknown_work_and_headless(monkeypatch):
     from codexa.training import terminal
 

@@ -366,13 +366,15 @@ def prepare_stream(
     from codexa.data.stream_policy import configured_streams
     from codexa.training.checkpoint import load, save_atomic
 
-    if additional_tokens != 1_000_000_000:
-        raise ValueError("Streaming preparation requires the explicit 1B budget")
+    if additional_tokens != 500_000_000:
+        raise ValueError("Streaming preparation requires the explicit 500M budget")
     if root.exists():
         raise FileExistsError("Use a fresh streaming continuation directory")
     if digest(parent_path) != expected_sha:
         raise ValueError("Preserved parent checkpoint fingerprint changed")
     source_config = json.loads(stream_config.read_text())
+    if source_config.get("additional_target_tokens") != additional_tokens:
+        raise ValueError("Streaming configuration and requested token budget differ")
     if source_config.get("parent_checkpoint_sha256") != expected_sha:
         raise ValueError("Streaming authorization targets another parent checkpoint")
     config = Config.load(config_path)
@@ -404,8 +406,17 @@ def prepare_stream(
         4 * 1024**3
     )
     root.mkdir(parents=True)
-    path = root / "initial-stream.pt"
-    save_atomic(state, path)
+    if config.training.checkpoint_every_tokens is not None:
+        from codexa.training.rolling import RollingCheckpoints
+
+        recovery = RollingCheckpoints(
+            root, config.training.checkpoint_keep, state["phase"]["volume_uuid"]
+        )
+        entry = recovery.save(state)
+        path = root / entry["file"]
+    else:
+        path = root / "initial-stream.pt"
+        save_atomic(state, path)
     return {
         "checkpoint": str(path),
         "sha256": digest(path),

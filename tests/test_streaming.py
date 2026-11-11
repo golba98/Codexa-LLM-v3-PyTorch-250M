@@ -513,6 +513,8 @@ def test_stream_launch_recomputes_reviews_and_requires_bound_authorization(
         "parent_checkpoint_sha256": "c" * 64,
         "assessment_roots": ["protected-math-recovery-v1", "protected-math-recovery-v2"],
     }
+    budget = 500_000_000 if version == V7_VERSION else 1_000_000_000
+    config.update(additional_target_tokens=budget, cumulative_target_tokens=500_006_912 + budget)
     protocol = specification(["wikimedia-wikipedia"], version=version)
     protocol["stream_config_sha256"] = hashlib.sha256(
         json.dumps(config, sort_keys=True).encode()
@@ -587,8 +589,8 @@ def test_stream_launch_recomputes_reviews_and_requires_bound_authorization(
         "status": "pending",
         "specification_sha256": specification_hash(protocol),
         "sources": protocol["sources"],
-        "additional_target_tokens": 1_000_000_000,
-        "cumulative_target_tokens": 1_500_006_912,
+        "additional_target_tokens": budget,
+        "cumulative_target_tokens": 500_006_912 + budget,
         "training_launch_authorized": False,
         "user_decision": "",
         "historical_roots": ["fixture"],
@@ -623,6 +625,8 @@ def test_stream_launch_recomputes_reviews_and_requires_bound_authorization(
                 "optimizer_schema_verified": True,
                 "checkpoint_resume_verified": True,
                 "cuda_memory_verified": True,
+                "optimizer_updates": 2,
+                "exact_gpu_resume_verified": True,
                 "training_config_identity": config["training_config_identity"],
                 "parent_sha256": config["parent_checkpoint_sha256"],
             },

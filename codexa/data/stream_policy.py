@@ -95,12 +95,13 @@ def launch_approval(config: dict[str, Any]) -> None:
     ):
         raise ValueError("Conservative source quality review did not pass")
     capacity = json.loads(read_bound(evidence["capacity"]).read_text())
+    budget = 500_000_000 if protocol["version"] == V7_VERSION else 1_000_000_000
     if (
         capacity.get("source_bindings") != protocol["source_bindings"]
-        or capacity.get("lower_95_eligible_train_tokens", 0) < 1_000_000_000
+        or capacity.get("lower_95_eligible_train_tokens", 0) < budget
         or capacity.get("stream_config_sha256") != protocol["stream_config_sha256"]
     ):
-        raise ValueError("Conservative 1B eligible-token availability is not established")
+        raise ValueError("Conservative eligible-token availability is not established")
     if protocol["version"] == V7_VERSION:
         losses = capacity.get("inspection_representativeness", {})
         if (
@@ -139,6 +140,16 @@ def launch_approval(config: dict[str, Any]) -> None:
         raise ValueError("Reviewed source rights required")
     auth = read_bound(evidence["authorization"])
     validate_authorization(auth, protocol)
+    record = json.loads(auth.read_text())
+    if protocol["version"] == V7_VERSION and (
+        config.get("additional_target_tokens") != budget
+        or config.get("cumulative_target_tokens") != record["cumulative_target_tokens"]
+        or compute.get("optimizer_updates", 0) < 2
+        or compute.get("exact_gpu_resume_verified") is not True
+    ):
+        raise ValueError(
+            "500M launch requires bound exact budget and real optimizer/resume evidence"
+        )
 
 
 class WikimediaAdmission:

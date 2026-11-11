@@ -2,7 +2,7 @@
 
 ## Language-first artifact policy
 
-The future 1B language continuation is owner-authorized; this repository cleanup prohibits executing it. The saved machine authorization remains pending and unchanged. Source quality and internal-use rights do not authorize publication. Preserve all checkpoints, tokenizer files, optimizer states, reviews and protected mathematics assets outside Git. See [current readiness](../reports/language/continuation-readiness.md).
+The current owner authorization is exactly 500M additional English tokens; it supersedes the historical 1B proposal. Native recovery uses two verified rolling checkpoints, plus final and optional best weights. Source quality and internal-use rights do not authorize publication. Preserve the original pretrained checkpoint, retained recovery files, final checkpoint, tokenizer and evidence outside Git. Automatic pruning applies only to obsolete rolling checkpoints owned by the new run; protected mathematics assets and other runs are excluded. See [current readiness](../reports/language/continuation-readiness.md).
 
 The pinned English Wikipedia assessment is limited to internal pretraining with retained attribution and exclusions. Third-party exceptions, weight licensing and public redistribution require separate review. Neither dataset quality approval nor training authorization grants a publication license.
 

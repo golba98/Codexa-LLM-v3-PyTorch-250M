@@ -217,6 +217,7 @@ def main() -> None:
 
             forward_only()
         if args.stream_config:
+            from codexa.data.provider_cache import CachedProvider
             from codexa.data.stream_policy import configured_streams
             from codexa.data.stream_probe import ByteBudget
             from codexa.data.streaming import open_provider
@@ -230,7 +231,9 @@ def main() -> None:
                 require_launch=not args.forward_only,
                 opener=(lambda shard: cast(BinaryIO, budget.wrap(open_provider(shard))))
                 if budget
-                else open_provider,
+                else CachedProvider(
+                    Path(args.output).parent / "stream-cache", args.checkpoint_volume_uuid
+                ),
             )
         if args.deterministic:
             torch.use_deterministic_algorithms(True)
@@ -243,6 +246,8 @@ def main() -> None:
             checkpoint_volume_uuid=args.checkpoint_volume_uuid,
             stream_data=streams,
         )
+        if args.stream_config:
+            trainer.dataset_name = json.loads(Path(args.stream_config).read_text())["dataset"]
         if args.resume:
             trainer.resume(args.resume)
         if args.forward_only:

@@ -54,8 +54,16 @@ class TrainConfig:
     validation_batches: int = 4
     precision: str = "auto"
     gradient_checkpointing: bool = False
+    checkpoint_every_tokens: int | None = None
+    checkpoint_keep: int = 2
 
     def __post_init__(self) -> None:
+        if type(self.checkpoint_keep) is not int or self.checkpoint_keep < 2:
+            raise ValueError("Retain at least two recovery checkpoints")
+        if self.checkpoint_every_tokens is not None and (
+            type(self.checkpoint_every_tokens) is not int or self.checkpoint_every_tokens <= 0
+        ):
+            raise ValueError("Token checkpoint frequency must be a positive integer")
         if (
             min(
                 self.steps,
