@@ -1,25 +1,49 @@
 # Research roadmap
 
-## Current state
+The immediate goal is coherent general language. Conversational post-training and Grade 1–12 mathematics follow their own evaluation and data-admission decisions.
 
-The custom architecture, tokenizer, native recovery and streaming implementations exist. An internal 500,006,912-token run completed; its language generation remains weak. The selected pinned English Wikipedia source has passed the approved corpus review. The owner replaced the earlier 1B proposal with exactly 500M additional language tokens, using rolling recovery and the existing terminal viewer after mandatory preflight. See [readiness](../reports/language/continuation-readiness.md).
+[Documentation](index.md) · [Research reports](../reports/README.md)
 
-## Language workstream
+## Where the project stands
 
-1. Preserve the completed repository cleanup, trained baseline and approved source evidence.
-2. Bind the explicit 500M authorization, verify optimizer/recovery on the RTX 4080 once, and launch a fresh streaming phase with two retained full recovery points.
-3. Retain tokenizer, architecture, protected evaluations and exact recovery; stop after the fixed budget. Codex exits after confirming launch. Generation evaluation and subsequent work await the owner’s return.
-4. Before conversational SFT, satisfy the separately specified base-language gate: 100 fresh protected development prose completions, at least 80 grammatical/coherent/complete responses and at most ten severe loops. Existing assistant-task outputs are not that fresh panel.
-5. Choose a concrete SFT budget and review dialogue rights, formatting and assistant-only masking before introducing a new objective. Larger language budgets and publication require their own decisions.
+| Area | Recorded state | Evidence or guide |
+| --- | --- | --- |
+| Implementation | Custom Transformer, tokenizer pipeline, streaming and native recovery are implemented | [Architecture](architecture.md) |
+| Base training | 500,006,912 target tokens completed | [Base run](../reports/training/base-500m.md) |
+| Language generation | Baseline coherence and repetition remain significant limitations | [Evaluation](../reports/evaluation/language-baseline.md) |
+| Continuation | Exactly 500M additional English targets; confirmed running on 11 November 2026 | [Training](training.md#language-continuation) |
+| Mathematics | Materials and tooling exist; final corpus admission is pending | [Mathematics status](../reports/datasets/mathematics-corpus.md) |
+| Public weights | Capability evidence and licensing review remain outstanding | [Release](release.md) |
 
-Historical 50M/100M candidates and 5B projections are retained in the [archive](../reports/archive/index.json). They are not simultaneous current training instructions. Estimates must stay separate from measured sustained performance.
+## Language learning
 
-## Mathematics workstream
+The current continuation uses the reviewed, pinned English Wikipedia stream. It preserves the parent checkpoint, tokenizer, architecture, evaluation exclusions and native recovery. The fixed budget ends at **1,000,006,912 cumulative targets**; evaluation and follow-on experiments do not start automatically.
 
-Develop Grade 1–12 materials independently of the language run. Preserve source grounding, exact editions, rights, curriculum mappings, split protections and independent review. Resolve visual/extraction gaps and reconcile the CAPS/ATP objective denominator before claiming coverage. Synthetic answers need independent verification of steps and explanations as well as numeric results.
+After the continuation, compare saved generations with the preserved baseline using identical protected prompts and decoding settings, with independent checkpoint-blinded scoring. Keep grammar, coherence, relevance, completeness and task success separate.
 
-Only a separately approved corpus and explicit mathematics training authorization can initiate specialization. Reevaluate general language and earlier mathematics topics to measure forgetting; a larger token count alone does not establish competence. See [mathematics status](../reports/datasets/mathematics-corpus.md).
+### Before conversational post-training
 
-## Release and remaining limits
+The base-language gate requires **100 fresh protected development prose completions**, at least **80 grammatical, coherent and complete responses**, and no more than **10 severe loops**. Existing assistant-task outputs do not substitute for that panel.
 
-Current blockers include reliable coherent generation, broader independent capability evaluation, mathematics admission and weight-publication licensing. The 32K profile is architectural support, not proof of trained 32K reasoning. No pretrained public model, Transformers runtime compatibility or production assistant capability is claimed. Publication follows the [release guide](release.md), with separate permission for weights and datasets.
+Before supervised fine-tuning (SFT), select a separate token budget, review dialogue rights and formatting, and define an assistant-only loss mask. A larger pretraining token count alone does not satisfy the language gate.
+
+## Grade 1–12 mathematics
+
+Develop the mathematics corpus independently of the language run. Remaining work includes:
+
+- Reconcile the CAPS/ATP curriculum objective denominator before claiming coverage.
+- Resolve visual and extraction gaps, quarantines and review disagreements.
+- Preserve source grounding, exact editions, rights, mappings and protected splits.
+- Verify synthetic explanations and intermediate steps independently of numeric answers.
+
+Specialization requires a separately admitted corpus and explicit training authorization. Evaluate both general language and earlier mathematics topics afterward to measure forgetting. The [dataset guide](datasets.md#mathematics-corpus) explains the materials and review boundaries.
+
+## Publication
+
+Public model release still depends on reliable generation, broader independent evaluation, provenance and approved weight licensing. Architecture support for a context length or runtime is insufficient evidence of learned capability or compatibility.
+
+There are no public trained weights or claimed Transformers/runtime integrations. Follow the [release guide](release.md) when the research and licensing evidence is ready.
+
+## Historical plans
+
+Earlier 50M/100M candidates, the superseded 1B proposal and 5B projections remain in the [research archive](../reports/archive/index.json). They describe their original decision state. Estimates remain separate from measured sustained performance.

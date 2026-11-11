@@ -75,5 +75,7 @@
   "next_actions": [
     "Preserve final and best checkpoints, optimizer/RNG state and tokenizer.",
     "Use paired protected evaluations for any separately launched continuation."
-  ]
+  ],
+  "historical": false,
+  "takeaway": "The base run completed 500,006,912 targets with a validated native recovery checkpoint."
 }

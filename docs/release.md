@@ -1,23 +1,65 @@
-# Release process
+# Release and artifact formats
 
-## Language-first artifact policy
+Use this guide to validate local exports and understand what can be shared. **No public trained weights are currently available**, and local preflight does not authorize publication.
 
-The current owner authorization is exactly 500M additional English tokens; it supersedes the historical 1B proposal. Native recovery uses two verified rolling checkpoints, plus final and optional best weights. Source quality and internal-use rights do not authorize publication. Preserve the original pretrained checkpoint, retained recovery files, final checkpoint, tokenizer and evidence outside Git. Automatic pruning applies only to obsolete rolling checkpoints owned by the new run; protected mathematics assets and other runs are excluded. See [current readiness](../reports/language/continuation-readiness.md).
+[Documentation](index.md) · [Training and recovery](training.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md)
 
-The pinned English Wikipedia assessment is limited to internal pretraining with retained attribution and exclusions. Third-party exceptions, weight licensing and public redistribution require separate review. Neither dataset quality approval nor training authorization grants a publication license.
+## Choose the right artifact
 
-GitHub contains source; an eventual model repository contains SafeTensors, configuration, tokenizer, card, generation defaults, provenance, checksums and approved weight license. No pretrained public model is currently available and no upload command is implemented.
+| Artifact | Contains | Intended use |
+| --- | --- | --- |
+| Native v1 checkpoint | Weights, optimizer, scheduler, RNG, sampler and recovery metadata | Private training and exact resume |
+| Private best weights | Selected weights and associated metadata | Local research; incomplete recovery state |
+| SafeTensors export | Inference weights plus configuration, tokenizer and reviewed metadata | Local inference and eventual approved distribution |
+| Fixture export | Tiny engineering model and original fixture assets | Export/preflight testing |
 
-1. Run `python scripts/verify.py` in the intended pinned environment.
-2. Test locally: `codexa release fixture --corpus examples/corpus --output outputs/exports/fixture-NEW`.
-3. Run `codexa release preflight --artifact outputs/exports/fixture-NEW --verification-report outputs/logs/verification.json`.
-4. For trained artifacts, export a trusted native checkpoint with `codexa export --checkpoint PATH --metadata reviewed.json --output outputs/exports/NAME`. Metadata must identify stage, version, origin, source commit, training tokens, datasets, evaluation and weight-license review.
-5. Review every model-card field, dataset permissions, license terms, reproducibility, resource measurements and scans. Obtain explicit publication authorization separately. No fixture is publish-ready.
+Public model artifacts use **SafeTensors**, not native recovery checkpoints. Codexa exports use schema version 1 and Codexa's own loader. No Transformers, GGUF or llama.cpp compatibility is claimed.
 
-SafeTensors exports are schema version 1 and use Codexa's own loader; no Transformers, GGUF or llama.cpp compatibility is claimed. Manifests hash payloads, not themselves. Validation reports stay outside export directories. Target directories must not exist. Native checkpoints remain version 1 and contain recovery state; do not distribute them as public inference weights.
+An eventual model repository needs configuration, tokenizer, model card, generation defaults, provenance, checksums and an approved weight license alongside its weights. GitHub holds source code. No upload command is implemented.
 
-Public model blockers include demonstrated capability and approved weight licensing/provenance. Review security reporting settings and current hosted CI separately; neither is established by a local preflight. Source code is Apache-2.0 and original corpus CC0; neither approves a future weight license. Preflight checks technical evidence and review declarations; it cannot independently certify legal rights or model capabilities.
+## Validate a fixture locally
 
-## Dataset-v2 artifacts
+In the pinned environment:
 
-The [historical dataset decisions](../reports/datasets/historical-candidates.md) registry records source revisions, hashes, declarations and attribution, while retaining underlying-content limitations. These records do not approve publication of the combined corpus or resulting weights. Raw text, token shards, evaluation outputs and native continuation bundles remain on `/mnt/codexa`, outside Git. Original authored benchmark fixtures are CC0. No release or remote metadata change is authorized by this preparation phase.
+```sh
+python scripts/verify.py
+codexa release fixture --corpus examples/corpus --output outputs/exports/fixture-NEW
+codexa release preflight --artifact outputs/exports/fixture-NEW --verification-report outputs/logs/verification.json
+```
+
+Choose a new destination for every export. Artifact directories must not exist in advance. Keep validation reports outside export directories; manifests hash payloads, not themselves.
+
+Fixture success checks the export tooling. It does not make the fixture publish-ready.
+
+## Export a trained checkpoint
+
+With a trusted native checkpoint and reviewed metadata:
+
+```sh
+codexa export --checkpoint /path/to/checkpoint.pt --metadata reviewed.json --output outputs/exports/NAME
+```
+
+Metadata must identify stage, version, origin, source commit, training-token count, datasets, evaluation and weight-license review. Review the model card, permissions, reproducibility evidence, resource measurements and scans before requesting publication authorization.
+
+Preflight verifies technical evidence and review declarations. It cannot independently establish legal rights or model competence. Review hosted CI and security-reporting settings separately.
+
+## Rights and publication
+
+| Material | Current boundary |
+| --- | --- |
+| Source code | Apache-2.0 |
+| Original authored corpus and benchmark fixtures | CC0 |
+| Selected English Wikipedia source | Reviewed for internal pretraining with attribution and exclusions |
+| Combined datasets and trained weights | Require separate rights and publication review |
+
+Source and fixture licenses do not approve a trained-weight license. Historical dataset registries record revisions, hashes, declarations and attribution with underlying-content limitations; they do not approve distribution of the combined corpus or weights.
+
+Public weights still need demonstrated capability and approved licensing/provenance. Publishing, releasing or changing remote metadata requires explicit authorization.
+
+## Preserve training and data artifacts
+
+The current English continuation adds exactly 500M targets to the preserved parent. It uses two retained rolling recovery files, a final checkpoint and optional best weights. Obsolete rolling files may be pruned only by the owning run's recovery manager.
+
+Keep native checkpoints, optimizer states, tokenizer files, raw text, token shards, private evaluations, continuation bundles and protected mathematics assets outside Git. Preserve the original parent and other runs. Documentation or export preparation does not authorize deleting these artifacts.
+
+See [rolling recovery](training.md#rolling-recovery), [dataset provenance](datasets.md#provenance-and-evaluation-separation) and the [historical source decisions](../reports/datasets/historical-candidates.md).

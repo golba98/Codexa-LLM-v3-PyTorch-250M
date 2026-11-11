@@ -37,5 +37,7 @@
   ],
   "next_actions": [
     "Keep external storage untouched. Reassess current references before any separately authorized storage task."
-  ]
+  ],
+  "historical": true,
+  "takeaway": "The earlier storage capture is preserved and grants no current deletion permission."
 }

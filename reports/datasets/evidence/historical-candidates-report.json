@@ -64,5 +64,7 @@
   "next_actions": [
     "Retain original decisions and provenance.",
     "Use the current source readiness report for the selected language continuation; do not rebuild these candidates during cleanup."
-  ]
+  ],
+  "historical": true,
+  "takeaway": "Earlier audited token snapshots failed their quality gates; later Wikipedia review is separate."
 }

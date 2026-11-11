@@ -1,68 +1,127 @@
 # Training, inference and recovery
 
-The [completed 500M run](../reports/training/base-500m.md) is the preserved baseline. The current authorization supersedes the future 1B proposal with exactly **500,000,000 additional tokens**, ending at **1,000,006,912 cumulative targets**. The parent checkpoint and tokenizer remain immutable. Launch requires fresh configuration-bound optimizer/resume evidence; the [historical readiness report](../reports/language/continuation-readiness.md) records the earlier pending state.
+Start with the CPU fixture to exercise the pipeline. Use native checkpoints for exact recovery and trusted-checkpoint generation; production continuation has separate data, authorization and compute requirements.
 
-## Bounded engineering smoke
+[Documentation](index.md) · [Architecture](architecture.md) · [Dataset guide](datasets.md)
 
-Run from the repository root in the pinned environment:
+## Run a CPU fixture
+
+From the repository root in the [pinned environment](../README.md#quick-start):
 
 ```sh
 sh scripts/training/smoke.sh
 ```
 
-This fits a fixture tokenizer, packs the original [CC0 corpus](../examples/corpus/PROVENANCE.md), trains the **133,440-parameter smoke model** on CPU, stops/resumes, and generates text. It uses a fresh `outputs/experiments/smoke.*` directory and preserves results. It is not a production training command or a generalization benchmark. Full verification uses similarly disposable tiny fixtures.
+The script trains the **133,440-parameter smoke model** on the original [CC0 corpus](../examples/corpus/PROVENANCE.md). It fits a fixture tokenizer, packs data, checks stop/resume and generates text. Each invocation uses a fresh `outputs/experiments/smoke.*` directory and preserves its results.
 
-## Native checkpoints and exact recovery
+This checks the engineering pipeline. Fixture output and loss do not measure general language ability. The full verifier uses similarly small, disposable CPU fixtures.
 
-Native checkpoint version 1 retains model, AdamW, scheduler, sampler, CPU/CUDA/Python/NumPy RNG, counters, configuration and tokenizer identity. Restore a trusted native checkpoint into a fresh output directory with the same compatible configuration and data:
+## Generate from a checkpoint
+
+A trusted native checkpoint includes the tokenizer needed for generation:
 
 ```sh
-codexa train --help
 codexa generate --checkpoint /path/to/checkpoint.pt --prompt 'Morning light' --max-tokens 32 --greedy
 ```
 
-For actual training, the existing CLI accepts `--resume`, `--data`, `--tokenizer`, `--config` and `--output`; review their exact meanings with `--help` before a separately authorized run. Changing a completed schedule or dataset requires explicit continuation preparation, not silently modifying an exact-resume configuration. SafeTensors inference exports do not contain optimizer recovery state.
+Supply your own checkpoint path; no public trained weights are distributed. For SafeTensors exports, use Codexa's loader as described in the [release guide](release.md).
 
-`--checkpoint-volume-uuid UUID` checks filesystem identity and a 20 GiB reserve before writes. Phase-specific storage policies can require a larger reserve. Never create a fallback directory when the intended volume is absent. `--deterministic` enables deterministic PyTorch algorithms; CUDA replay additionally needs `CUBLAS_WORKSPACE_CONFIG=:4096:8`. Exact replay is bounded by tested software/hardware compatibility.
+Generation enforces a context budget and supports a per-request key/value cache. The baseline trained at 2,048 tokens; experimental profiles reach 32K with explicit linear RoPE scaling. Profile support does not establish learned long-context reasoning.
 
-## Streaming continuation
+## Resume a run
 
-The working streaming loader is in `codexa/data/streaming.py`; `stream_policy.py` binds the pinned source, tokenizer, exclusions, protected evaluations, rights, quality, capacity and compute evidence. Seven source hashes are part of that approval. Policy changes require fresh source hashes and evidence bindings; original quality judgments and exclusion payloads remain preserved.
+Native checkpoint **version 1** stores model weights, AdamW state, scheduler, sampler, CPU/CUDA/Python/NumPy random state, counters, configuration and tokenizer identity.
 
-Forward-only provider checks use `CODEXA_NO_TRAINING=1`, `--forward-only` and a mandatory byte cap no larger than 64 MiB. They perform no optimizer updates. Live training streams pinned provider bytes without building a replacement corpus. Existing evidence records native next-batch resume and fixed-validation replay; the [readiness report](../reports/language/continuation-readiness.md) explains measurement limits.
+```sh
+codexa train --help
+```
 
-`codexa continuation stream-prepare` prepares a phase only after source/config-bound launch authorization passes. It does not train. The current Wikimedia phase requires exactly 500M targets. The legacy developer healthcheck covers historical 50M/100M array-based phases; it is not the current streaming launcher. Dataset quality approval never implies launch authorization.
+The CLI accepts `--resume`, `--data`, `--tokenizer`, `--config` and `--output`. Restore a trusted file with compatible configuration and data into a fresh output directory. For a rolling run, `--resume /path/to/run/training` resolves the newest retained file that passes integrity checks, warning and falling back to the previous file if needed.
 
-Production streaming uses a disposable 2 GiB cache of the exact compressed provider blocks under the run's `stream-cache` directory. Duplicate checks and resume can replay already fetched bytes locally. Missing blocks use bounded 1 MiB HTTP ranges checked against the pinned object ETag, exact content range and length; cached blocks carry SHA-256 checksums. Eviction removes cache blocks owned by that cache, subject to the 40 GiB free-space reserve. This cache follows the original byte stream and has no checkpoint or token-array state.
+Exact resume preserves the existing schedule. A changed dataset or an extension to a completed schedule needs explicit continuation preparation. SafeTensors inference exports contain no optimizer recovery state.
+
+### Determinism and storage
+
+- `--deterministic` enables deterministic PyTorch algorithms. CUDA replay also needs `CUBLAS_WORKSPACE_CONFIG=:4096:8`. Exact replay is limited to tested software/hardware combinations.
+- `--checkpoint-volume-uuid UUID` verifies the filesystem and a 20 GiB free-space reserve before writes. Phase-specific rules can require more space.
+- Keep the intended volume mounted. An absent volume must not be replaced with a fallback directory.
+
+## Language continuation
+
+The preserved [base run](../reports/training/base-500m.md) completed **500,006,912 target tokens**. The current phase adds exactly **500,000,000 English targets**, ending at **1,000,006,912 cumulative targets**.
+
+The run's event log confirmed completed optimizer updates on **11 November 2026**. That is a dated execution observation, not a completion claim. The [old 1B readiness report](../reports/language/continuation-readiness.md) remains a historical assessment from before this phase.
+
+### Source and launch checks
+
+The streaming loader reads the pinned English Wikipedia source without constructing a replacement token corpus. Its policy binds the source, frozen tokenizer, protected exclusions, rights, quality, capacity and compute evidence. Seven source hashes participate in approval; policy changes require fresh hashes and evidence bindings.
+
+`codexa continuation stream-prepare` prepares a fresh phase only after source/configuration-bound authorization passes. Preparation itself does not train. The current phase requires the exact 500M budget and real optimizer/exact-resume evidence. The legacy healthcheck covers historical 50M/100M array phases.
+
+Forward-only provider checks use `CODEXA_NO_TRAINING=1`, `--forward-only` and a mandatory byte cap of at most 64 MiB. They perform no optimizer updates. Provider access and source quality do not independently authorize training.
+
+### Provider cache
+
+| Setting | Behavior |
+| --- | --- |
+| Disk budget | 2 GiB of compressed provider blocks in the run's `stream-cache` directory |
+| Network reads | Bounded 1 MiB HTTP ranges |
+| Identity checks | Pinned ETag, exact content range and response length |
+| Cache integrity | SHA-256 checksum per stored block |
+| Free-space reserve | 40 GiB |
+
+Duplicate checks and recovery can reuse the exact fetched bytes. Missing blocks are fetched again; eviction removes only owned cache blocks. The cache is disposable and adds no token-array or sampler state to native checkpoints.
 
 ## Rolling recovery
 
-Set `training.checkpoint_every_tokens: 50000000` and `training.checkpoint_keep: 2` for this continuation. Token milestones are measured from the phase parent and saved after the first completed update crossing them. Omitted token frequency preserves legacy step-based saving. The reviewed continuation keeps AdamW moments, LR 0.0001/minimum 0.00001, 100 warmup updates and a fresh 15,259-update cosine schedule. The final update consumes only the remaining 25,856 targets.
+For the current continuation:
 
-Rolling native files are read back and compared with the complete live state, including optimizer, scheduler, RNG and streaming cursor/buffer. A checksummed `recovery.json` atomically identifies latest and previous; only obsolete files owned by that run are removed afterward. Lightweight history receipts remain. Saves require the intended volume and space for the new transaction above the 40 GiB reserve. A failed transaction stops training without deleting existing recovery points. Unrecoverable errors can lose updates since the last verified save.
+```yaml
+training:
+  checkpoint_every_tokens: 50000000
+  checkpoint_keep: 2
+```
 
-`--resume /path/to/run/training` resolves the newest verified retained file, warning and falling back to previous if latest fails integrity. Normal file paths and native v1 checkpoint payloads remain supported; absent new configuration fields use their defaults. `best-weights.pt` is a private weights-only artifact, not a full recovery checkpoint or public export. Completion publishes `final.pt` as the latest full recovery file without a redundant optimizer copy.
+The first completed update crossing each phase-token milestone triggers a save. Omitting `checkpoint_every_tokens` preserves legacy step-based saving. Native v1 file loading remains supported; new configuration fields have defaults.
 
-## Monitoring
+The continuation retains AdamW moments and uses a fresh **15,259-update cosine schedule**: learning rate 0.0001, minimum 0.00001 and 100 warmup updates. The final update consumes the remaining **25,856 targets**.
 
-Training selects the Rich terminal UI on a capable TTY; `--ui none` is headless. Ctrl+C checkpoints after the current update. Terminal rendering runs separately so renderer failures do not stop optimization. `codexa dashboard --help` describes the independent localhost browser viewer and telemetry options.
+### What is saved
 
-For a persistent independent view using the same original Rich renderer:
+| Artifact | Purpose |
+| --- | --- |
+| Rolling native checkpoints | Two retained full recovery points, including optimizer and stream state |
+| `recovery.json` | Atomically published manifest with latest/previous entries and checksums |
+| `checkpoint-history/` | Lightweight receipts for published saves |
+| `final.pt` | Final full recovery state, published as latest at completion |
+| `best-weights.pt` | Optional private weights-only artifact for improved validation loss |
+
+A new rolling file is read back and compared with the complete live state, including scheduler, RNG and stream cursor/buffers. Only after manifest publication are obsolete run-owned files removed. Writes require the intended volume and transaction space above the 40 GiB reserve.
+
+A failed transaction stops training without deleting the existing recovery points. Updates since the last verified save can still be lost. Private best weights are neither a full recovery checkpoint nor a public inference export.
+
+## Monitor a run
+
+Training selects the Rich terminal interface on a capable TTY; `--ui none` runs headlessly. Ctrl+C in the trainer requests a checkpoint after the current update. Rendering runs separately so a failed renderer does not stop optimization.
+
+For an independent viewer:
 
 ```sh
 python -m codexa.training.terminal --run /path/to/run/training
 ```
 
-The viewer replays and follows real `events.jsonl` records, including resumed sessions; it has no training controls. Run training and viewer in separate tmux sessions so closing the visible viewer leaves optimization running. The existing checkpoint panel shows the next token milestone, retained recovery steps and disk usage. The performance panel shows update throughput and effective session throughput, which includes loading stalls, validation and saves. ETA uses elapsed time between recent updates. Reattach the launch viewer with `tmux attach-session -t codexa-v3-language-500m-viewer`.
+Run trainer and viewer in separate tmux sessions. The viewer replays and follows `events.jsonl`, including resumed sessions; closing it leaves training running. The terminal shows token milestones, retained recovery steps and disk usage.
 
-The application retains scheduled validation loss, stops at exactly 500M additional tokens, verifies the final checkpoint and exits. No automatic generation evaluation, mathematics training or follow-on experiment is scheduled. Codex ends its task after confirming actual production optimizer updates and the visible independent viewer.
+**Update throughput** measures an update; **effective session throughput** also includes loading stalls, validation and saves. ETA uses elapsed time between recent updates. `codexa dashboard --help` describes the independent localhost browser viewer and telemetry options.
 
-![Terminal training interface](images/terminal-training-full.png)
+![Terminal interface displaying a completed smoke fixture](images/terminal-training-full.png)
 
-## Evaluation and context
+*This screenshot is from the 133,440-parameter fixture. Displayed performance values apply to that fixture.*
 
-Generation enforces context budgets and supports per-request KV caching. Configured profiles range from 2K to 32K; the baseline trained at 2,048. Experimental linear RoPE scaling is explicit. Configuration support does not establish trained long-context reasoning.
+The production phase keeps scheduled validation, verifies its final checkpoint and stops at the fixed token budget. Generation evaluation, mathematics training and follow-on experiments are separate tasks.
 
-Protected evaluation tools live in `codexa/evaluation`; analysis/plotting tools are in `scripts/evaluation`. Use identical prompts and decoding settings for paired evaluation, independent checkpoint-blinded scoring, and distinct grammar/coherence/relevance/completeness/task-success dimensions. Preserve raw outputs privately. Automatic answer proxies and corpus loss are not human factual-accuracy or conversational-capability scores.
+## Evaluate results
 
-See the [language baseline](../reports/evaluation/language-baseline.md), [benchmarks](../reports/benchmarks/recorded-performance.md), [roadmap](roadmap.md), and [archived detailed training records](../reports/archive/index.json).
+Protected evaluation tools live in `codexa/evaluation`; analysis and plotting tools live in `scripts/evaluation`. Compare checkpoints with identical protected prompts and decoding settings, independent checkpoint-blinded scoring, and separate grammar/coherence/relevance/completeness/task-success judgments. Keep raw outputs private.
+
+Corpus loss and automatic answer proxies do not establish factual accuracy or conversational ability. Read the [language baseline](../reports/evaluation/language-baseline.md), [recorded benchmarks](../reports/benchmarks/recorded-performance.md) and [roadmap](roadmap.md) before interpreting results.
