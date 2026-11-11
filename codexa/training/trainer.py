@@ -19,6 +19,7 @@ from codexa.tokenizer.bpe import CodexaTokenizer
 from .callbacks.telemetry import Callback, EventBus
 from .checkpoint import check_volume, load, restore_rng, rng_state, save_atomic
 from .optimizer import make_optimizer
+from .rolling import RollingCheckpoints
 from .scheduler import make_scheduler
 
 
@@ -151,6 +152,11 @@ class Trainer:
         self.model.gradient_checkpointing = c.gradient_checkpointing
         self.best_validation_loss: float | None = None
         self.phase: dict[str, Any] | None = None
+        self.recovery = (
+            RollingCheckpoints(self.output, c.checkpoint_keep, checkpoint_volume_uuid)
+            if c.checkpoint_every_tokens is not None
+            else None
+        )
 
     def amp(self) -> torch.autocast:
         return torch.autocast(self.device.type, dtype=torch.bfloat16, enabled=self.bf16)
@@ -176,49 +182,61 @@ class Trainer:
             )
         started = time.perf_counter()
         self.emit("checkpoint_started", identifier=name)
-        save_atomic(
+        state = {
+            "version": 1,
+            "microsteps": self.microsteps,
+            "best_validation_loss": self.best_validation_loss,
+            "config": self.config.to_dict(),
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+            "step": self.step,
+            "tokens": self.tokens,
+            "rng": rng_state(),
+            "sampler": self.sampler.state_dict(),
+            "fingerprints": self.fingerprints,
+            "tokenizer_json": self.tokenizer_json,
+            "device_type": self.device.type,
+            "bf16": self.bf16,
+        } | (
             {
-                "version": 1,
-                "microsteps": self.microsteps,
-                "best_validation_loss": self.best_validation_loss,
-                "config": self.config.to_dict(),
-                "model": self.model.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "scheduler": self.scheduler.state_dict(),
-                "step": self.step,
-                "tokens": self.tokens,
-                "rng": rng_state(),
-                "sampler": self.sampler.state_dict(),
-                "fingerprints": self.fingerprints,
-                "tokenizer_json": self.tokenizer_json,
-                "device_type": self.device.type,
-                "bf16": self.bf16,
-            }
-            | (
-                {
-                    "phase": self.phase
-                    | {
-                        "phase_updates": self.step,
-                        "phase_tokens": self.tokens - self.phase["parent_tokens"],
-                        "cumulative_updates": self.phase["parent_updates"] + self.step,
-                    }
+                "phase": self.phase
+                | {
+                    "phase_updates": self.step,
+                    "phase_tokens": self.tokens - self.phase["parent_tokens"],
+                    "cumulative_updates": self.phase["parent_updates"] + self.step,
                 }
-                if self.phase
-                else {}
-            ),
-            self.output / name,
+            }
+            if self.phase
+            else {}
         )
-
+        extra = {}
+        if self.recovery is not None:
+            entry = self.recovery.save(state, final=self.step == self.config.training.steps)
+            name = entry["file"]
+            extra = self.recovery.status()
+        else:
+            save_atomic(state, self.output / name)
         self.emit(
             "checkpoint_saved",
-            identifier=name,
-            size_bytes=(self.output / name).stat().st_size,
-            duration_seconds=time.perf_counter() - started,
-            verification_status="atomic_save_only",
+            **(
+                extra
+                | {
+                    "identifier": name,
+                    "size_bytes": (self.output / name).stat().st_size,
+                    "duration_seconds": time.perf_counter() - started,
+                    "verification_status": "readback_verified"
+                    if self.recovery
+                    else "atomic_save_only",
+                }
+            ),
         )
 
     def resume(self, path: str) -> None:
-        state = load(path)
+        source = Path(path)
+        if source.is_dir():
+            source = RollingCheckpoints(source).latest()
+        state = load(source)
         if (
             state["version"] != 1
             or Config.from_dict(state["config"]).to_dict() != self.config.to_dict()
@@ -290,11 +308,27 @@ class Trainer:
                     self.emit("validation_progress", completed_batches=i + 1, total_batches=batches)
                     progress_at = time.perf_counter()
             value = sum(losses) / len(losses)
+            if not math.isfinite(value):
+                raise FloatingPointError("Nonfinite validation loss")
+            improved = self.best_validation_loss is None or value < self.best_validation_loss
             self.best_validation_loss = (
                 value
                 if self.best_validation_loss is None
                 else min(self.best_validation_loss, value)
             )
+            if improved and self.recovery is not None:
+                self.recovery.save_best(
+                    {
+                        "artifact_kind": "codexa-private-weights-1",
+                        "model": self.model.state_dict(),
+                        "config": self.config.to_dict(),
+                        "tokenizer_json": self.tokenizer_json,
+                        "fingerprints": self.fingerprints,
+                        "step": self.step,
+                        "tokens": self.tokens,
+                        "validation_loss": value,
+                    }
+                )
             self.emit(
                 "validation_completed",
                 validation_loss=value,
@@ -319,9 +353,9 @@ class Trainer:
                     "Streaming training is blocked pending source approval and gate integration"
                 )
             self.train_data.launch_check()
-            if not self.phase or self.phase.get("additional_target_tokens") != 1_000_000_000:
+            if not self.phase or self.phase.get("additional_target_tokens") != 500_000_000:
                 raise RuntimeError(
-                    "Streaming requires an explicitly prepared 1B continuation phase"
+                    "Streaming requires an explicitly prepared 500M continuation phase"
                 )
         from .terminal import choose_terminal
 
@@ -355,6 +389,10 @@ class Trainer:
                 "fingerprints": self.fingerprints,
                 "context_target": 32768,
                 "dataset": self.dataset_name,
+                "phase": "English Wikipedia continuation" if self.phase else "Base pretraining",
+                "additional_target_tokens": self.phase.get("additional_target_tokens")
+                if self.phase
+                else None,
             },
             self.callbacks + ((terminal,) if terminal else ()),
         )
@@ -476,6 +514,17 @@ class Trainer:
                     if loading_seconds
                     else None,
                     dataset=self.dataset_name,
+                    checkpoint_next_tokens=(
+                        (
+                            (self.tokens - (self.phase["parent_tokens"] if self.phase else 0))
+                            // c.checkpoint_every_tokens
+                            + 1
+                        )
+                        * c.checkpoint_every_tokens
+                        if c.checkpoint_every_tokens
+                        else None
+                    ),
+                    recovery_status=self.recovery.status() if self.recovery else None,
                     cuda_allocated_bytes=torch.cuda.memory_allocated()
                     if self.device.type == "cuda"
                     else None,
@@ -490,7 +539,15 @@ class Trainer:
                 records.append(record)
                 with (self.output / "metrics.jsonl").open("a") as f:
                     f.write(json.dumps(record) + "\n")
-                if self.step % c.checkpoint_every == 0:
+                phase_tokens = self.tokens - (self.phase["parent_tokens"] if self.phase else 0)
+                if c.checkpoint_every_tokens is not None:
+                    due = (
+                        phase_tokens // c.checkpoint_every_tokens
+                        > (phase_tokens - tokens) // c.checkpoint_every_tokens
+                    )
+                else:
+                    due = self.step % c.checkpoint_every == 0
+                if due:
                     self.checkpoint()
             self.checkpoint()
             self.emit(

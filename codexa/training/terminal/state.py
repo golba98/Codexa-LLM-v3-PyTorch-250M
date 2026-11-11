@@ -23,6 +23,7 @@ class TerminalState:
         self.checkpoint: dict[str, Any] = {}
         self.best: float | None = None
         self.resumed = False
+        self.session_start_tokens = 0
         self.peak_vram: int | None = None
 
     def update(self, e: TrainingEvent) -> None:
@@ -30,12 +31,16 @@ class TerminalState:
         self.run_id = e.run_id
         d = e.data
         if e.event == "started":
+            self.timings.clear()
+            self.session_start_tokens = e.tokens
             self.metadata = d.get("metadata", {})
             self.resumed = bool(d.get("resumed"))
             self.best = d.get("best_validation_loss")
             self.status, self.phase = "running", self.metadata.get("phase", "Base pretraining")
         elif e.event == "step_completed":
             self.metrics = d.copy()
+            if d.get("recovery_status"):
+                self.checkpoint.update(d["recovery_status"])
             peak = d.get("peak_cuda_bytes")
             if peak is not None:
                 self.peak_vram = max(self.peak_vram or 0, peak)
@@ -86,6 +91,7 @@ class TerminalState:
             "step": self.step,
             "tokens": self.tokens,
             "elapsed": self.elapsed,
+            "session_start_tokens": self.session_start_tokens,
             "eta": remaining,
             "run_id": self.run_id,
             "status": self.status,

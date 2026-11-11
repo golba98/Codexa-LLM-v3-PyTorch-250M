@@ -3,6 +3,10 @@
 
 ## Unreleased
 
+Fix repeated remote gzip replay during streaming duplicate checks and checkpoint resume with a bounded 2 GiB cache of pinned compressed provider blocks. Verify HTTP ranges and cached block checksums, preserve native stream identities/cursors, and keep the existing 40 GiB reserve. Distinguish per-update and effective session throughput in the original terminal layout so fast updates do not hide long data-loading stalls.
+
+Supersede the future 1B Wikimedia launch budget with exactly 500M additional tokens. Preserve the parent architecture, tokenizer and AdamW moments with the reviewed continuation schedule. Add opt-in token-based rolling recovery (50M-token milestones, two verified native checkpoints), atomic manifest publication, full read-back checks, protected run-local pruning, best weights and a verified final checkpoint. Native v1 file loading and legacy step-based saving remain supported. Add a reconnectable event follower using the original Rich renderer, retaining its styling and showing token milestones, recovery points and disk usage. No generation evaluation or follow-on work starts automatically; production launch requires actual optimizer and exact-resume evidence.
+
 Repository organization: group developer scripts by training, evaluation, datasets/mathematics, benchmarks and maintenance; retain `scripts/verify.py`, all model/configuration paths and the pinned streaming-policy source bytes. Update script imports, verifier paths, workflows, packaging and command examples. Public developer-script paths intentionally change; see CONTRIBUTING.
 
 Documentation now has five lowercase canonical guides and an index. Dated findings use concise generated reports with reviewed JSON inputs, an index, distinct quality/authorization/execution states and checksummed original snapshots. Original benchmark evidence and both historical archives retain their payload bytes. The owner-authorized future 1B continuation remains unlaunched; its saved machine authorization is unchanged.

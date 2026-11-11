@@ -102,7 +102,13 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
     if meta.get("parent_tokens"):
         header.add_row(
             Text(
-                "Continuation tokens " + number(s["tokens"] - meta["parent_tokens"], 0), style=DIM
+                "Continuation tokens "
+                + number(s["tokens"] - meta["parent_tokens"], 0)
+                + " / "
+                + number(
+                    meta.get("additional_target_tokens", (target or 0) - meta["parent_tokens"]), 0
+                ),
+                style=DIM,
             ),
             Text("Lifetime step " + number(meta.get("parent_updates", 0) + step, 0)),
         )
@@ -127,8 +133,17 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         ("Speed trend", spark(s["speeds"])),
     ]
     performance = [
-        ("Throughput", speed),
-        ("Steps / second", number(1 / seconds if seconds else None)),
+        ("Update throughput", speed),
+        (
+            "Effective throughput",
+            number(
+                (s["tokens"] - s.get("session_start_tokens", s["tokens"])) / s["elapsed"]
+                if s["elapsed"] > 0
+                else None,
+                0,
+                " tok/s",
+            ),
+        ),
         ("Step duration", number(seconds, 4, "s")),
         ("Effective batch", number(batch, 0)),
         ("Accumulation", number(cfg.get("accumulation"), 0)),
@@ -198,6 +213,21 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         ),
         ("Validation", validation),
     ]
+    if cfg.get("checkpoint_every_tokens"):
+        next_tokens = min(
+            m.get("checkpoint_next_tokens") or cfg["checkpoint_every_tokens"],
+            meta.get("additional_target_tokens") or float("inf"),
+        )
+        recovery[2] = ("Next save (phase tokens)", number(next_tokens, 0))
+        retained = ck.get("retained", [])
+        recovery[5] = (
+            "Retained recovery steps",
+            ", ".join(str(e["step"]) for e in retained) or "Preparing first save",
+        )
+        recovery[6] = (
+            "Disk free / recovery",
+            gib(ck.get("disk_free_bytes")) + " / " + gib(ck.get("recovery_bytes")),
+        )
     events = s["events"] or ["Waiting for training events"]
     event_lines = 3 if width >= 86 and height >= 34 else 2 if width >= 86 and height >= 28 else 1
     event_panel = Panel(
@@ -209,7 +239,9 @@ def frame(s: dict[str, Any], width: int, height: int) -> Any:
         padding=(0, 1),
     )
     footer = Text(
-        "Ctrl+C: safe checkpoint & stop · viewer has no training controls",
+        "Ctrl+C: close viewer · training continues independently"
+        if meta.get("viewer_only")
+        else "Ctrl+C: safe checkpoint & stop · viewer has no training controls",
         style=DIM,
         overflow="ellipsis",
         no_wrap=True,
