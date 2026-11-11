@@ -24,6 +24,12 @@ def validate_report(record: dict[str, Any]) -> None:
     ):
         if not isinstance(record.get(field), str) or not record[field].strip():
             raise ValueError("Missing report metadata: " + field)
+    if type(record.get("historical", False)) is not bool:
+        raise ValueError("Historical marker must be boolean")
+    if "takeaway" in record and (
+        not isinstance(record["takeaway"], str) or not record["takeaway"].strip()
+    ):
+        raise ValueError("Report takeaway must be nonempty text")
     ident = record["report_id"]
     if any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in ident):
         raise ValueError("Report identifier must be lowercase kebab-case")
@@ -71,75 +77,99 @@ def cell(value: Any) -> str:
 
 def render_report(record: dict[str, Any]) -> str:
     validate_report(record)
+    historical = record.get("historical", False)
     lines = [
         "<!-- Generated from the adjacent evidence record; edit the JSON and regenerate. -->",
         "# " + record["title"],
         "",
-        record["purpose"],
+        record.get("takeaway", record["summary"][0]),
         "",
-        "| Date | Run | Model | Dataset | Status |",
-        "| --- | --- | --- | --- | --- |",
-        "| "
-        + " | ".join(
-            cell(record[k])
-            for k in ("date", "run_id", "model_version", "dataset_version", "status")
-        )
-        + " |",
+        f"**Recorded status: {record['status']} · {record['date']}**",
         "",
     ]
+    if historical:
+        lines += [
+            "> **Historical snapshot.** Decisions, budgets and next actions below describe "
+            + record["date"]
+            + ". Use the [current documentation](../../docs/index.md) for supported workflows.",
+            "",
+        ]
+        if record.get("kind") == "continuation-readiness":
+            lines += [
+                (
+                    "> This assessment concerns the earlier 1B proposal. The current phase adds "
+                    "500M targets; see [language continuation](../../docs/training.md#language-continuation)."
+                ),
+                "",
+            ]
+    lines += [
+        "## Finding",
+        "",
+        *["- " + item for item in record["summary"]],
+        "",
+        "## Run and scope",
+        "",
+        "| Field | Recorded value |",
+        "| --- | --- |",
+    ]
+    for key, label in (
+        ("date", "Date"),
+        ("run_id", "Run"),
+        ("model_version", "Model"),
+        ("dataset_version", "Dataset"),
+        ("purpose", "Assessment scope"),
+    ):
+        lines.append(f"| {label} | {cell(record[key])} |")
+    lines.append("")
     if record.get("kind") == "continuation-readiness":
         lines += ["## Readiness decisions", "", "| Gate / decision | State |", "| --- | --- |"]
         for name, state in record["gates"].items():
             lines.append(f"| {cell(name.replace('_', ' '))} | {cell(state)} |")
-        training = record["training"]
         for name in ("authorized", "execution_permitted", "started"):
             lines.append(
-                f"| Training {name.replace('_', ' ')} | {'YES' if training[name] else 'NO'} |"
+                f"| Training {name.replace('_', ' ')} | "
+                f"{'YES' if record['training'][name] else 'NO'} |"
             )
         lines.append("")
-    titles = {
-        "summary": "Executive summary",
-        "methodology": "Methodology",
-        "results": "Results",
-        "limitations": "Failures and limitations",
-        "next_actions": "Required next actions",
-    }
-    for section in (
-        "summary",
-        "metrics",
-        "methodology",
-        "results",
-        "limitations",
-        "evidence",
-        "next_actions",
+    lines += ["## Measurements", "", "| Metric | Value | Scope |", "| --- | --- | --- |"]
+    lines += [
+        "| " + " | ".join(cell(metric[k]) for k in ("name", "value", "scope")) + " |"
+        for metric in record["metrics"]
+    ]
+    lines.append("")
+    for section, title in (
+        ("results", "Interpretation"),
+        ("limitations", "Limitations"),
+        ("methodology", "Method"),
+        ("next_actions", "Actions recorded at the time" if historical else "Next steps"),
     ):
+        lines += ["## " + title, "", *["- " + item for item in record[section]], ""]
+    lines += [
+        "## Evidence",
+        "",
+        "<details>",
+        "<summary>Artifact locations and original SHA-256 checksums</summary>",
+        "",
+    ]
+    for evidence in record["evidence"]:
         lines += [
-            "## "
-            + titles.get(
-                section,
-                {"metrics": "Key metrics", "evidence": "Supporting evidence"}.get(section, section),
-            ),
+            "**" + cell(evidence["label"]) + "**",
+            "",
+            "Location: `" + cell(evidence["location"]) + "`",
+            "",
+            "SHA-256: `" + evidence["sha256"] + "`",
             "",
         ]
-        if section == "metrics":
-            lines += ["| Metric | Value | Scope |", "| --- | --- | --- |"]
-            lines += [
-                "| " + " | ".join(cell(m[k]) for k in ("name", "value", "scope")) + " |"
-                for m in record[section]
-            ]
-        elif section == "evidence":
-            lines += ["| Evidence | Artifact location | SHA256 |", "| --- | --- | --- |"]
-            lines += [
-                f"| {cell(e['label'])} | `{cell(e['location'])}` | `{e['sha256']}` |"
-                for e in record[section]
-            ]
-            lines += [
-                "",
-                "`external:` locations are relative to the private artifact root; payloads are not distributed here.",
-            ]
-        else:
-            lines += ["- " + item for item in record[section]]
-        lines.append("")
+    lines += [
+        (
+            "`repository:` identifies a checked-in path; `archive:` identifies a checksummed "
+            "archive member. `external:` is relative to the private artifact root; "
+            "`local:` identifies ignored local evidence. Private payloads are not distributed here."
+        ),
+        "",
+        "</details>",
+        "",
+    ]
     return "\n".join(lines)
 
 

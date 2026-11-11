@@ -85,5 +85,7 @@
   "next_actions": [
     "Use original JSON for configuration-specific values.",
     "Collect a new explicitly bounded measurement with source/config/environment provenance before claiming a performance change."
-  ]
+  ],
+  "historical": false,
+  "takeaway": "Nine original engineering records retain their measured hardware and workload scope."
 }

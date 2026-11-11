@@ -69,5 +69,7 @@
   "next_actions": [
     "Keep SFT deferred until the separately specified base-language gate passes.",
     "After a future continuation, compare identical protected prompts and settings with blinded scoring."
-  ]
+  ],
+  "historical": false,
+  "takeaway": "The 500M baseline still fails the assessed conversational-generation panel."
 }

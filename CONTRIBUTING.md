@@ -36,7 +36,25 @@ Original CC0 evaluation source fixtures now ship in `codexa/evaluation/assets` i
 
 ## Documentation and reports
 
-Maintain the five canonical guides and their index. Put unique dated research findings in reports, with a concise summary and separate machine evidence. Report inputs live at `reports/<workstream>/evidence/*-report.json`; regenerate with `python -m scripts.maintenance.render_reports`. CI checks that Markdown matches its inputs. Baseline analysis and storage inventory accept `--report NEW.md` to summarize their original JSON; historical continuation preflight also supports `--report` while retaining its JSON receipt. No summary command starts training. Every input identifies model/dataset versions, run/date, status, metrics with scope, methods, limitations, evidence hashes and next actions.
+The README introduces the project and quick start. Keep implementation and workflows in the five canonical guides linked from [the documentation index](docs/index.md); put dated research findings in [reports](reports/README.md). Use short introductions, task-oriented headings and descriptive links. Caption fixture screenshots with their model size so their metrics cannot be mistaken for primary-model results.
+
+Report inputs live at `reports/<workstream>/evidence/*-report.json`. Regenerate them and verify consistency:
+
+```sh
+python -m scripts.maintenance.render_reports
+python -m scripts.maintenance.render_reports --check
+```
+
+CI checks that Markdown matches its inputs. Every schema-v1 record identifies model/dataset versions, run/date, status, scoped metrics, methods, limitations, evidence hashes and next actions. Two optional presentation fields retain compatibility with existing records:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `takeaway` | First summary entry | A concise finding for the report lead and index |
+| `historical` | `false` | Label the report as a dated historical decision and group it separately |
+
+Historical labels do not change recorded outcomes. Keep original budgets and decisions intact; connect superseded proposals to current guides. Reports display evidence locations and checksums in an expandable section. Regeneration never runs experiments.
+
+Baseline analysis and storage inventory accept `--report NEW.md` to summarize original JSON; historical continuation preflight also supports `--report` while retaining its receipt.
 
 Do not hand-edit generated Markdown, regrade historical failures, fabricate missing metadata or rewrite immutable evidence. Use `external:` locators relative to the private artifact root and `local:` for ignored repository evidence. They are identifiers, not claims that payloads ship in Git. A reviewed source's quality PASS, its rights scope, authorization and whether execution started are distinct decisions.
 

@@ -1,49 +1,97 @@
 # Architecture
 
-## Language-first continuation
+Codexa's primary model is a **248,687,488-parameter decoder-only Transformer** implemented in [codexa/architecture](../codexa/architecture/). It uses custom PyTorch modules and begins training from random initialization.
 
-The immediate objective is coherent English, followed by conversational post-training. The 248,687,488-parameter architecture, context length, special IDs, initialization and frozen 16,384-token tokenizer remain unchanged. Continue existing weights; do not reinitialize them. Mathematics specialization remains a later phase, and ordinary mathematical expressions remain eligible in useful prose.
+[Documentation](index.md) · [Training](training.md) · [Measured benchmarks](../reports/benchmarks/recorded-performance.md)
 
+## Primary configuration
 
-Codexa implements its own decoder-only Transformer. Inputs `[B,T]` become token embeddings `[B,T,D]`; no learned positional embeddings or linear biases are used.
+| Dimension | Value |
+| --- | ---: |
+| Decoder layers, L | 24 |
+| Hidden width, D | 896 |
+| Attention heads, H | 14 |
+| Head dimension | 64 |
+| Feed-forward width, F | 2,432 |
+| Vocabulary, V | 16,384 |
+| Training context | 2,048 |
 
-For each block:
+The [primary](../configs/250m.yaml), [intermediate](../configs/50m.yaml) and [smoke](../configs/smoke.yaml) profiles contain 248,687,488, 49,295,872 and 133,440 parameters respectively. Context profiles are in [configs/context](../configs/context/).
 
-```
+## Decoder block
+
+Token IDs with shape `[B, T]` become embeddings with shape `[B, T, D]`. Each block applies attention and a gated feed-forward network with residual connections:
+
+```text
 u = x + Attention(RMSNorm(x))
 y = u + Down(SiLU(Gate(RMSNorm(u))) * Up(RMSNorm(u)))
 ```
 
-RMSNorm computes `x / sqrt(mean(x²) + epsilon) * scale`, using FP32 reductions, epsilon 1e-6, and one learned scale per feature. Final RMSNorm precedes the tied output matrix. No additional block dropout is used; configurable attention dropout defaults to zero.
+There are no learned positional embeddings, linear biases or additional block dropout. Final RMSNorm precedes the output projection, whose weights are shared with the input embedding.
 
-Attention projects packed Q/K/V, reshapes each to `[B,H,T,D/H]`, rotates Q and K, and computes `softmax(Q Kᵀ / sqrt(D/H) + causal_mask) V`. SDPA dispatches to an available optimized backend; no particular fused kernel is guaranteed. The causal mask permits only positions `j <= i`. Evaluation always passes dropout probability zero.
+### Normalization and feed-forward network
 
-RoPE rotates adjacent pairs `(a,b)` into `(a cos(theta)-b sin(theta), a sin(theta)+b cos(theta))`, with `theta = position / 10000^(2k/head_dim)`. Positions start at zero for each window. Head dimension must be even. Frequencies and trigonometry use FP32; rotations return the input dtype. RoPE buffers are nonpersistent and carry no trainable parameters.
+RMSNorm computes `x / sqrt(mean(x²) + epsilon) * scale`. It uses FP32 reductions, epsilon 1e-6 and one learned scale per feature.
 
-Embeddings and projection weights start with independent normal draws, standard deviation 0.02. Attention output and SwiGLU down projections use `0.02 / sqrt(2L)`. Norm scales start at one. Tied embedding/head weights are initialized once and included once in AdamW. There are no pretrained components or calls to existing Transformer modules.
+The SwiGLU network projects the normalized input through separate gate and up matrices, multiplies `SiLU(gate)` by the up projection, and projects back to the hidden width.
+
+### Causal attention
+
+A packed projection produces Q, K and V, reshaped to `[B, H, T, D/H]`. Attention computes:
+
+```text
+softmax(Q Kᵀ / sqrt(D/H) + causal_mask) V
+```
+
+The mask permits only positions `j <= i`. Configurable attention dropout defaults to zero and is always zero during evaluation. PyTorch scaled dot-product attention selects an available backend; a particular fused kernel is not guaranteed.
+
+### Rotary positions
+
+RoPE rotates adjacent feature pairs:
+
+```text
+(a, b) → (a cos(theta) - b sin(theta), a sin(theta) + b cos(theta))
+theta = position / 10000^(2k/head_dim)
+```
+
+Training-window positions start at zero; cached inference uses absolute positions. Head dimension must be even. Frequencies and trigonometry use FP32, and rotated values return to the input dtype. RoPE buffers are nonpersistent and have no trainable parameters.
+
+## Initialization
+
+| Weights | Initialization |
+| --- | --- |
+| Embeddings and ordinary projections | Independent normal draws, standard deviation 0.02 |
+| Attention output and SwiGLU down projections | Standard deviation `0.02 / sqrt(2L)` |
+| RMSNorm scales | Ones |
+
+The tied embedding/output matrix is initialized once and included once in AdamW. No pretrained weights or existing Transformer implementations are substituted.
 
 ## Parameter accounting
 
-For vocabulary V, width D, FFN width F, and L blocks:
+For vocabulary V, hidden width D, feed-forward width F and L blocks:
 
 `P = VD + L(4D² + 3DF + 2D) + D`
 
-| Component | Primary parameters |
-|---|---:|
+| Component | Parameters |
+| --- | ---: |
 | Shared token embedding/output | 14,680,064 |
-| Attention projections, 24 blocks | 77,070,336 |
-| SwiGLU projections, 24 blocks | 156,893,184 |
+| Attention projections across 24 blocks | 77,070,336 |
+| SwiGLU projections across 24 blocks | 156,893,184 |
 | 49 RMSNorm scales | 43,904 |
-| Total | **248,687,488** |
+| **Total** | **248,687,488** |
 
-Primary dimensions are L=24, D=896, H=14, head dimension=64, F=2432, V=16384, context=2048. The intermediate model has 49,295,872 parameters; smoke has 133,440. Meta-device model construction counts actual parameters without allocating primary weights during unit tests. Benchmarks allocate real models.
+Unit tests count actual parameters on the meta device without allocating primary weights. Benchmarks allocate real models; see the [benchmark report](../reports/benchmarks/recorded-performance.md) for measurement scope.
 
-## Objective and inference
+## Objective and generation
 
-For packed tokens `s[0:T+1]`, inputs are `s[0:T]` and targets `s[1:T+1]`. The loss is mean negative log likelihood over every target position; no second shift occurs inside the loss. Packing deliberately permits context across EOS/BOS boundaries. Accumulated equal-sized micro-batch losses divide by accumulation count before backward.
+For packed tokens `s[0:T+1]`, inputs are `s[0:T]` and targets are `s[1:T+1]`. Training minimizes mean negative log likelihood over target positions. The loss does not shift targets a second time. Packing allows context across EOS/BOS boundaries; equal-sized microbatch losses are divided by the accumulation count before backward.
 
-Inference repeatedly evaluates the current context, then selects the final-position logits. Temperature precedes top-k and nucleus filtering. Nucleus filtering retains the token crossing the probability threshold. Greedy decoding uses argmax. EOS ends generation. M2.5 replaces sliding truncation with explicit budget enforcement and adds per-request KV caching, absolute positions, opt-in linear scaling and block activation checkpointing. See [training](training.md).
+Generation selects from final-position logits. Temperature is applied before top-k and nucleus filtering; nucleus filtering retains the token that crosses the probability threshold. Greedy decoding uses argmax, and EOS ends generation.
 
-## Dataset-v2 compatibility
+Inference enforces explicit context budgets and supports a per-request key/value cache. Experimental linear RoPE scaling and block activation checkpointing are opt-in. Configured profiles up to 32K do not establish learned long-context capability.
 
-Dataset-v2 preparation keeps the existing 248,687,488-parameter architecture, 16,384-token vocabulary, special IDs, 2,048-token context and next-token objective unchanged. Its continuation tooling validates exact model/tokenizer identity; it does not introduce context extension or pretrained components. See [training readiness](../reports/language/continuation-readiness.md) for measured baseline evidence and the forward-only verification scope.
+## Continuation compatibility
+
+Dataset-v2 and the current language continuation preserve the primary architecture, 16,384-token vocabulary, special IDs, 2,048-token training context and next-token objective. Continuation reuses the existing weights and frozen tokenizer. Model and tokenizer identities are validated before recovery or phase preparation.
+
+See [native recovery](training.md#resume-a-run) for compatibility boundaries and [the roadmap](roadmap.md) for the research sequence.

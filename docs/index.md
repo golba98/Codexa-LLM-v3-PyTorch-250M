@@ -1,24 +1,37 @@
 # Documentation
 
-Start with the [project README](../README.md) for installation, current status and inference. These five guides describe the working implementation; dated results belong in [reports](../reports/README.md).
+Codexa v3 builds a decoder-only language model from random initialization. Use these guides to understand the implementation, run the local fixtures or review the research.
 
-| Guide | Contents |
+[Project overview](../README.md) · [Research reports](../reports/README.md) · [Contributing](../CONTRIBUTING.md)
+
+## Choose a starting point
+
+| I want to… | Start here |
 | --- | --- |
-| [Architecture](architecture.md) | Decoder implementation, initialization, parameter counts, objective and context |
-| [Training](training.md) | Tiny smoke workflow, inference, exact recovery, streaming and monitoring |
-| [Datasets](datasets.md) | Tokenizer, source configurations, provenance, admission and mathematics materials |
-| [Roadmap](roadmap.md) | Separate language/mathematics workstreams, capability gates and planned milestones |
-| [Release](release.md) | SafeTensors, native checkpoint boundaries, licensing and publication review |
+| Install the project and try the CLI | [README quick start](../README.md#quick-start) |
+| Run a small fixture or recover a run | [Training and inference](training.md) |
+| Understand the custom Transformer | [Architecture](architecture.md) |
+| Inspect sources, tokenizer and split protections | [Datasets](datasets.md) |
+| See what is complete and what comes next | [Roadmap](roadmap.md) |
+| Export and validate a local artifact | [Release](release.md) |
+| Change the code or regenerate reports | [Contributing](../CONTRIBUTING.md) |
 
-## Results and development
+## The five guides
 
-- [1B language continuation readiness](../reports/language/continuation-readiness.md)
-- [Completed 500M run](../reports/training/base-500m.md)
-- [Language evaluation and limitations](../reports/evaluation/language-baseline.md)
-- [Mathematics corpus workstream](../reports/datasets/mathematics-corpus.md)
-- [Historical corpus decisions](../reports/datasets/historical-candidates.md)
-- [Benchmarks](../reports/benchmarks/recorded-performance.md)
-- [Contributing, verification and script locations](../CONTRIBUTING.md)
-- [Research archive index](../reports/archive/index.json) and [earlier engineering archive](archive/index.json)
+- **[Architecture](architecture.md)** explains dimensions, decoder equations, initialization, parameter accounting and the next-token objective.
+- **[Training](training.md)** covers CPU fixtures, trusted-checkpoint inference, native recovery, streaming and monitoring.
+- **[Datasets](datasets.md)** covers the frozen tokenizer, pinned language source, provenance, evaluation separation and mathematics corpus work.
+- **[Roadmap](roadmap.md)** separates language learning, conversational post-training, mathematics and eventual publication.
+- **[Release](release.md)** distinguishes native recovery files from inference exports and explains local validation and licensing.
 
-Archive members retain original bytes and historical links. Use their indexes and current guides for navigation; archived launch suggestions and status statements are not current instructions.
+These guides describe the implementation and supported workflows. Dated measurements and assessments belong in reports.
+
+## Results and evidence
+
+The [report index](../reports/README.md) groups findings separately from historical decisions. Start with the [completed base run](../reports/training/base-500m.md), [language evaluation](../reports/evaluation/language-baseline.md) or [recorded benchmarks](../reports/benchmarks/recorded-performance.md).
+
+The [old 1B readiness assessment](../reports/language/continuation-readiness.md) describes the decision state on 10 November 2026. The current continuation budget is 500M additional tokens; use the [training guide](training.md#language-continuation) for that configuration.
+
+## Historical records
+
+The [research archive](../reports/archive/index.json) and [earlier engineering archive](archive/index.json) retain original documents and checksums. Archived commands and launch suggestions describe their original context. Follow the current guides for executable workflows.

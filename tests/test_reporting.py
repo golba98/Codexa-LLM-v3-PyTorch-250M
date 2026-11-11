@@ -39,6 +39,59 @@ def test_quality_pass_cannot_authorize_execution():
         render_report(record)
 
 
+def test_historical_presentation_preserves_original_decisions_and_evidence(tmp_path):
+    record = readiness()
+    before = copy.deepcopy(record)
+    rendered = render_report(record)
+    assert "Historical snapshot" in rendered
+    assert "500M targets" in rendered
+    assert "Actions recorded at the time" in rendered
+    assert "1,000,000,000" in rendered
+    assert "| Training started | NO |" in rendered
+    for evidence in record["evidence"]:
+        assert evidence["location"] in rendered
+        assert evidence["sha256"] in rendered
+    assert record == before
+
+    root = tmp_path / "reports"
+    source = root / "language" / "evidence" / "readiness-report.json"
+    source.parent.mkdir(parents=True)
+    source.write_text(json.dumps(record))
+    current = copy.deepcopy(record)
+    current.update(report_id="current-assessment", historical=False, takeaway="Current | finding")
+    source.with_name("current-report.json").write_text(json.dumps(current))
+    render_tree(root)
+    render_tree(root, check=True)
+    index = (root / "README.md").read_text()
+    results, history = index.split("## Historical decisions")
+    assert "(language/current-assessment.md)" in results
+    assert "(language/continuation-readiness.md)" in history
+    assert "Current \\| finding" in results
+
+
+def test_legacy_report_defaults_need_no_presentation_metadata(tmp_path):
+    record = readiness()
+    record.pop("historical", None)
+    record.pop("takeaway", None)
+    rendered = render_report(record)
+    assert record["summary"][0] in rendered
+    assert "Historical snapshot" not in rendered
+    assert "## Next steps" in rendered
+    source = tmp_path / "language" / "evidence" / "legacy-report.json"
+    source.parent.mkdir(parents=True)
+    source.write_text(json.dumps(record))
+    render_tree(tmp_path)
+    assert "## Historical decisions" not in (tmp_path / "README.md").read_text()
+
+
+@pytest.mark.parametrize("metadata", [{"historical": "false"}, {"takeaway": ""}, {"takeaway": 3}])
+def test_invalid_presentation_metadata_is_rejected(metadata):
+    record = readiness()
+    record.update(metadata)
+    with pytest.raises(ValueError):
+        render_report(record)
+
+
 @pytest.mark.parametrize(
     "field", ["date", "model_version", "methodology", "limitations", "evidence"]
 )

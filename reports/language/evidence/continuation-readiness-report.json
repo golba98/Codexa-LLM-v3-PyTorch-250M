@@ -133,5 +133,7 @@
     "historical_compute_scope": "PASS",
     "machine_launch_record": "BLOCKED",
     "cleanup_execution": "BLOCKED"
-  }
+  },
+  "historical": true,
+  "takeaway": "The old 1B proposal had source approval but unresolved machine launch preparation."
 }
