@@ -59,7 +59,7 @@ def check_repository() -> None:
         ("nested/CLAUDE.md", True),
         ("outputs/datasets/train.bin", True),
         ("outputs/tokenizers/tokenizer.json", True),
-        ("AGENTS.md", False),
+        ("AGENTS.md", True),
         ("nested/AGENTS.md", True),
         ("AGENTS.override.md", True),
         (".agents/scratch/task.md", True),

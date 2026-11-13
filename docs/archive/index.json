@@ -40,20 +40,8 @@
     "sha256": "8c16e4d7d21d2369d18a6389f3fa213894ead60e8363debea2cf23eb6a8bf467"
   },
   {
-    "path": "docs/engineering/MIGRATION_MAP.md",
-    "sha256": "b658fdba3ccd94104298d154685e0fc54693b3bb9b7417c0148ecc2d27f681c5"
-  },
-  {
-    "path": "docs/engineering/OVERHAUL_REPORT.md",
-    "sha256": "973c23867c5365f1f7f09340e04f018d7577a902e249ecc355d44af5cf79ed3d"
-  },
-  {
     "path": "docs/engineering/REPOSITORY_AUDIT.md",
     "sha256": "b67c7e62a94aaa8f6c95b74b23e183d61fe71e7c33150837cbf62c3608ee1ab0"
-  },
-  {
-    "path": "docs/engineering/REPOSITORY_OVERHAUL_PLAN.md",
-    "sha256": "a077dcf1ab11bce2da6376856d3420c1122b82771275e894e77806f55a83902a"
   },
   {
     "path": "docs/engineering/TERMINAL_DASHBOARD_REPORT.md",

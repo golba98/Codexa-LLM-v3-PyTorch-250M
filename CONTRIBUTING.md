@@ -1,6 +1,6 @@
 # Contributing
 
-Read [AGENTS.md](AGENTS.md) and the [documentation index](docs/index.md). Use a dedicated branch; preserve existing work, native checkpoints, parameter counts, tokenizer identity, corpus splits and research evidence. Code contributions use Apache-2.0; original fixtures are CC0. Third-party data requires provenance and applicable permission.
+Read the [documentation contribution policy](README.md#documentation-contributions) and the [documentation index](docs/index.md). Use a dedicated branch; preserve existing work, native checkpoints, parameter counts, tokenizer identity, corpus splits and research evidence. Code contributions use Apache-2.0; original fixtures are CC0. Third-party data requires provenance and applicable permission.
 
 ## Environment and checks
 
