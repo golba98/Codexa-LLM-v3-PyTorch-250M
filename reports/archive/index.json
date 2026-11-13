@@ -1,7 +1,7 @@
 {
   "captured": "2026-11-10",
   "archive": "research-2026-11-10.tar.gz",
-  "scope": "Historical snapshots; decisions and links describe their original capture, not current readiness. Original bytes preserved.",
+  "scope": "Public historical technical snapshots; original member bytes preserved. Internal workstation storage notes retained privately.",
   "records": [
     {
       "path": "docs/ARCHITECTURE.md",
@@ -14,10 +14,6 @@
     {
       "path": "docs/CODEXA_V3_DIAGNOSTIC_REPORT.md",
       "sha256": "62fe4f7e8e402ecebbf8a6607eb15a8620f6b597138c037258533361e4dac8dd"
-    },
-    {
-      "path": "docs/CODEXA_V3_STORAGE_AUDIT.md",
-      "sha256": "479b41e06e43f6e237ecdb787eebe29d22d042b4b8ae25806306fa8a3a1cb249"
     },
     {
       "path": "docs/CODEXA_V3_TRAINING_READINESS.md",

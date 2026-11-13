@@ -13,3 +13,9 @@ include THIRD_PARTY_NOTICES.md codexa/training/terminal/V1_LICENSE
 recursive-include codexa/dashboard/static *
 recursive-include reports *.md *.json *.gz
 recursive-include codexa/evaluation/assets *.txt *.tsv LICENSE
+prune .agents/scratch
+prune .agents/teamwork
+prune .private
+prune docs/_reports
+prune docs/tmp
+global-exclude AGENTS.md CLAUDE.md GEMINI.md agents.md claude.md gemini.md AGENTS.override.md

@@ -41,7 +41,7 @@ Each report exposes its artifact locations and SHA-256 checksums in an expandabl
 
 - [Original benchmark JSON](benchmarks/evidence/): retained measurements and hardware scope.
 - [Research archive](archive/index.json): original documents captured on 10 November 2026.
-- [Earlier engineering archive](../docs/archive/index.json): 17 checksummed original documents.
+- [Earlier engineering archive](../docs/archive/index.json): 14 checksummed public technical documents; internal migration notes are retained privately.
 
 ## Maintain these reports
 

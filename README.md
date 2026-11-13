@@ -111,3 +111,13 @@ The model profiles are [primary](configs/250m.yaml), [intermediate](configs/50m.
 Source code is **Apache-2.0**; original corpus fixtures are **CC0**. Dataset and trained-weight permissions require their own review. See [third-party notices](THIRD_PARTY_NOTICES.md), the [release guide](docs/release.md) and [security policy](SECURITY.md).
 
 Weights, native checkpoints, downloaded corpora and private evaluations stay outside Git. This repository contains Codexa v3; the earlier PyTorch v1 and NumPy/CuPy v2 projects are independent.
+
+<!-- documentation-publication-policy:start -->
+## Documentation contributions
+
+Agent instruction entrypoints (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) are local-only and ignored by Git.
+
+Keep temporary plans and agent notes in ignored `.agents/scratch/`. Update existing guides for lasting user or contributor needs; ordinary tasks do not need a Markdown report.
+
+After cloning, install local checks with `python3 scripts/check_documentation.py --install-hooks`. Run `python3 scripts/check_documentation.py` before publication. Public documentation and publication-policy changes require owner review of exact contents. Prepare a proposal with `python3 scripts/check_documentation.py --propose .agents/scratch/documentation-review.json`; the owner reviews it in a separate terminal with `--review` and the same path. PR checks print the owner approval comment to post before rerunning validation. Hooks and CI cannot undo an initial public disclosure.
+<!-- documentation-publication-policy:end -->
